@@ -56,6 +56,25 @@ ASOS_DO = {
 WEA = ["평균기온", "평균최고기온", "평균최저기온", "평균습도", "평균풍속",
        "누적강수", "누적일사", "누적일조"]
 
+# 생육기간 집계 시: 앞 5개는 '평균', 뒤 3개는 '합계'
+AVG_WEA = ["평균기온", "평균최고기온", "평균최저기온", "평균습도", "평균풍속"]
+SUM_WEA = ["누적강수", "누적일사", "누적일조"]
+
+# 작물별 생육기간 (mode: 'same'=같은해, 'prev'=전년부터)
+CROP_PERIODS = {
+    "논벼":   ("same", (5, 1),  (10, 31)),
+    "겉보리": ("prev", (10, 1), (6, 30)),
+    "쌀보리": ("prev", (10, 1), (6, 30)),
+    "맥주보리": ("prev", (10, 1), (6, 30)),
+    "옥수수": ("same", (4, 1),  (9, 30)),
+    "콩":     ("same", (6, 1),  (10, 31)),
+    "사과":   ("same", (3, 1),  (10, 31)),
+    "배":     ("same", (3, 1),  (10, 31)),
+    "감귤":   ("same", (3, 1),  (12, 31)),
+}
+
+ASOS_API_URL = "http://apis.data.go.kr/1360000/AsosDalyInfoService/getWthrDataList"
+
 GRAINS = ["겉보리", "쌀보리", "맥주보리", "옥수수", "콩"]
 FRUIT = ["사과", "배", "감귤"]
 
@@ -248,6 +267,19 @@ def _load_real():
                           "최저기온": "평균최저기온", "습도": "평균습도",
                           "풍속": "평균풍속"}))
 
+    # --- 평년값(CLIMO) 일별 테이블: 도 × (월,일) 평균 ---
+    # 미래 연도 예측 시 '아직 안 온 날'을 이 값으로 채운다. (서버는 이것만 있으면 됨)
+    ad = a.copy()
+    ad["월"] = ad["일시"].dt.month
+    ad["일"] = ad["일시"].dt.day
+    ad = ad.rename(columns={
+        "기온": "평균기온", "최고기온": "평균최고기온", "최저기온": "평균최저기온",
+        "습도": "평균습도", "풍속": "평균풍속",
+        "강수": "누적강수", "일사": "누적일사", "일조": "누적일조",
+    })
+    ad["누적강수"] = ad["누적강수"].fillna(0)
+    climo_daily = ad.groupby(["도", "월", "일"])[WEA].mean().reset_index()
+
     # --- 날씨 병합 ---
     rice = rice.merge(W, on=["도", "연도"], how="left")
     rice.loc[rice["누적일사"] == 0, "누적일사"] = np.nan
@@ -289,6 +321,9 @@ def _load_real():
         grain_model=grain_model, GCOLS=GCOLS,
         rice_model=rice_model, RCOLS=RCOLS, RICE_CATS=RICE_CATS,
         rice_total_model=rice_total_model, RTCOLS=RTCOLS, RICE_DO_CATS=RICE_DO_CATS,
+        climo_daily=climo_daily,
+        hist_max_year=int(max(int(df["연도"].max()),
+                              int(rice_total["연도"].max()))),
     ))
 
     STATE["main_regions"] = main_regions
@@ -297,6 +332,206 @@ def _load_real():
         do: sorted(rice[rice["도"] == do]["시군"].dropna().unique())
         for do in STATE["rice_dos"]
     }
+
+
+# =========================================================
+# 실시간 ASOS(실측) + 평년(CLIMO) 날씨 엔진
+#   - 생육기간 중 '지난 날'은 기상청 ASOS API 실측
+#   - '아직 안 온 날'은 pkl 안의 평년 테이블로 보완
+# =========================================================
+from datetime import date, datetime, timedelta
+
+_WX_CACHE = {}            # (도, start, end, 날짜키) -> 실측 daily DataFrame
+_LAST_WX_INFO = {}        # 직전 예측의 날씨 처리 정보 (응답에 표시용)
+_LIVE_ENABLED = True      # False면 미래 연도라도 실시간 ASOS를 쓰지 않음(지역 비교용)
+
+
+def _service_key():
+    """ASOS 인증키: 환경변수 우선, 없으면 config 기본값."""
+    try:
+        import config
+        return getattr(config, "ASOS_SERVICE_KEY", None)
+    except Exception:
+        return os.environ.get("ASOS_SERVICE_KEY")
+
+
+def _kst_now():
+    try:
+        from zoneinfo import ZoneInfo
+        return datetime.now(ZoneInfo("Asia/Seoul"))
+    except Exception:
+        return datetime.utcnow() + timedelta(hours=9)
+
+
+def _asos_available_end(now=None):
+    """ASOS 일자료는 전일(D-1)까지, 보통 11시 이후 제공."""
+    now = now or _kst_now()
+    if now.hour >= 11:
+        return now.date() - timedelta(days=1)
+    return now.date() - timedelta(days=2)
+
+
+def _crop_period(작물, 연도):
+    mode, (sm, sd), (em, ed) = CROP_PERIODS[작물]
+    if mode == "prev":
+        return date(int(연도) - 1, sm, sd), date(int(연도), em, ed)
+    return date(int(연도), sm, sd), date(int(연도), em, ed)
+
+
+def _station_ids_for_do(도):
+    도 = norm_do(도)
+    return sorted([int(k) for k, v in ASOS_DO.items() if norm_do(v) == 도])
+
+
+def _fetch_asos_station(stn_id, start_date, end_date, key, num_rows=999):
+    import requests
+    items_all, page = [], 1
+    while True:
+        params = {
+            "serviceKey": key, "dataType": "JSON", "dataCd": "ASOS",
+            "dateCd": "DAY", "startDt": start_date.strftime("%Y%m%d"),
+            "endDt": end_date.strftime("%Y%m%d"), "stnIds": str(stn_id),
+            "numOfRows": str(num_rows), "pageNo": str(page),
+        }
+        r = requests.get(ASOS_API_URL, params=params, timeout=20)
+        r.raise_for_status()
+        resp = r.json().get("response", {})
+        code = str(resp.get("header", {}).get("resultCode", ""))
+        if code not in ("00", "0", "NORMAL_SERVICE"):
+            raise RuntimeError(f"ASOS API code={code}")
+        body = resp.get("body", {})
+        total = int(body.get("totalCount", 0) or 0)
+        items = body.get("items", {}).get("item", [])
+        if isinstance(items, dict):
+            items = [items]
+        items_all.extend(items)
+        if page * num_rows >= total or not items:
+            break
+        page += 1
+
+    if not items_all:
+        return pd.DataFrame(columns=["일시"] + WEA)
+
+    out = pd.DataFrame(items_all).rename(columns={
+        "tm": "일시", "avgTa": "평균기온", "maxTa": "평균최고기온",
+        "minTa": "평균최저기온", "avgRhm": "평균습도", "avgWs": "평균풍속",
+        "sumRn": "누적강수", "sumGsr": "누적일사", "sumSsHr": "누적일조",
+    })
+    out["일시"] = pd.to_datetime(out["일시"], errors="coerce")
+    for c in WEA:
+        if c not in out.columns:
+            out[c] = np.nan
+        out[c] = pd.to_numeric(out[c], errors="coerce")
+    out["누적강수"] = out["누적강수"].fillna(0)
+    return out[["일시"] + WEA]
+
+
+def _asos_actual_daily(도, start_date, end_date, key):
+    """도 단위 실측 일별 날씨(지점 평균). 메모리 캐시 사용."""
+    도 = norm_do(도)
+    if end_date < start_date:
+        return pd.DataFrame(columns=["일시"] + WEA)
+    ck = (도, start_date.isoformat(), end_date.isoformat(),
+          _kst_now().strftime("%Y%m%d%H"))
+    if ck in _WX_CACHE:
+        return _WX_CACHE[ck]
+
+    frames = []
+    for stn in _station_ids_for_do(도):
+        try:
+            one = _fetch_asos_station(stn, start_date, end_date, key)
+            if not one.empty:
+                frames.append(one)
+        except Exception as e:
+            print(f"[ASOS] 지점 {stn} 실패: {e}")
+    if frames:
+        allrows = pd.concat(frames, ignore_index=True)
+        daily = allrows.groupby("일시")[WEA].mean().reset_index()
+    else:
+        daily = pd.DataFrame(columns=["일시"] + WEA)
+    _WX_CACHE[ck] = daily
+    return daily
+
+
+def _climo_daily_range(도, start_date, end_date):
+    """평년 테이블에서 [start,end] 구간의 일별 평년값."""
+    도 = norm_do(도)
+    if end_date < start_date:
+        return pd.DataFrame(columns=["일시"] + WEA)
+    climo = _R["climo_daily"]
+    climo = climo[climo["도"] == 도]
+    if climo.empty:
+        return pd.DataFrame(columns=["일시"] + WEA)
+    tgt = pd.DataFrame({"일시": pd.date_range(start_date, end_date, freq="D")})
+    tgt["월"] = tgt["일시"].dt.month
+    tgt["일"] = tgt["일시"].dt.day
+    out = tgt.merge(climo, on=["월", "일"], how="left")
+    return out[["일시"] + WEA]
+
+
+def _aggregate_period(daily):
+    if daily is None or daily.empty:
+        return None
+    row = {}
+    for c in AVG_WEA:
+        row[c] = float(pd.to_numeric(daily[c], errors="coerce").mean())
+    for c in SUM_WEA:
+        row[c] = float(pd.to_numeric(daily[c], errors="coerce").sum(min_count=1))
+    return pd.Series(row)
+
+
+def _live_weather(도, 작물, 연도):
+    """미래/현재 연도용 날씨 Series 생성. 실패 시 None.
+    처리 정보는 _LAST_WX_INFO 에 기록."""
+    global _LAST_WX_INFO
+    도 = norm_do(도)
+    try:
+        start, end = _crop_period(작물, 연도)
+    except Exception:
+        return None
+
+    key = _service_key()
+    today = _kst_now().date()
+    api_end = _asos_available_end()
+    actual_start = start
+    actual_end = min(end, api_end)
+
+    actual = pd.DataFrame(columns=["일시"] + WEA)
+    actual_note = "실측없음"
+    if key and str(key).strip() and actual_end >= actual_start and today >= actual_start:
+        try:
+            actual = _asos_actual_daily(도, actual_start, actual_end, key)
+            if not actual.empty:
+                actual_note = f"{actual_start:%Y-%m-%d}~{actual_end:%Y-%m-%d} 실측"
+        except Exception as e:
+            print(f"[ASOS] 실측 수집 실패 → 평년만 사용: {e}")
+
+    climo_start = (actual_end + timedelta(days=1)) if not actual.empty else start
+    climo = _climo_daily_range(도, climo_start, end)
+    climo_note = (f"{climo_start:%Y-%m-%d}~{end:%Y-%m-%d} 평년"
+                  if not climo.empty else "평년없음")
+
+    combined = pd.concat([actual, climo], ignore_index=True)
+    wx = _aggregate_period(combined)
+    if wx is None:
+        _LAST_WX_INFO = {"방식": "날씨생성실패"}
+        return None
+
+    method = ("실측+평년" if not actual.empty and not climo.empty
+              else "실측" if not actual.empty else "평년")
+    _LAST_WX_INFO = {
+        "방식": method,
+        "생육기간": f"{start:%Y-%m-%d}~{end:%Y-%m-%d}",
+        "실측구간": actual_note,
+        "평년구간": climo_note,
+        "실측일수": int(actual["일시"].nunique()) if not actual.empty else 0,
+        "평년일수": int(climo["일시"].nunique()) if not climo.empty else 0,
+    }
+    return wx
+
+
+def _is_future(연도):
+    return _LIVE_ENABLED and int(연도) > int(_R.get("hist_max_year", 9999))
 
 
 # =========================================================
@@ -314,6 +549,11 @@ def _lag(도, 작물, 연도):
 
 def _weather_row(도, 작물, 연도):
     df = _R["df"]
+    # 미래 연도(학습표 이후) -> 실시간 ASOS + 평년
+    if _is_future(연도):
+        wx = _live_weather(도, 작물, 연도)
+        if wx is not None:
+            return wx
     src = df[(df["도"] == 도) & (df["작물"] == 작물) & (df["연도"] == 연도)]
     if not src.empty:
         return src.iloc[0]
@@ -325,6 +565,11 @@ def _weather_row(도, 작물, 연도):
 
 def _rice_weather(도, 연도):
     rt, rc = _R["rice_total"], _R["rice"]
+    # 미래 연도 -> 실시간 ASOS + 평년
+    if _is_future(연도):
+        wx = _live_weather(도, "논벼", 연도)
+        if wx is not None:
+            return wx
     s = rt[(rt["도"] == 도) & (rt["연도"] == 연도)]
     if not s.empty:
         return s.iloc[0]
@@ -534,6 +779,9 @@ def predict(도, 작물, 면적_ha, 연도, 시군=None):
     면적_ha = float(면적_ha)
     시군 = (str(시군).strip() or None) if 시군 else None
 
+    global _LAST_WX_INFO
+    _LAST_WX_INFO = {}  # 이번 예측에서 실시간 날씨가 쓰이면 채워짐
+
     if STATE["mode"] == "real":
         단수, via = _predict_yield_real(도, 작물, 연도, 시군)
     else:
@@ -569,21 +817,32 @@ def predict(도, 작물, 면적_ha, 연도, 시군=None):
             result["실제단수_kg_10a"] = round(실제, 1)
             result["오차율_%"] = round(abs(단수 - 실제) / 실제 * 100, 1)
 
+    # 실시간 날씨가 쓰였으면 처리 정보 첨부
+    if _LAST_WX_INFO:
+        result["날씨정보"] = dict(_LAST_WX_INFO)
+
     return result
 
 
 def rank_regions(작물, 연도, 면적_ha=10.0, top=8):
-    """기업용: 해당 작물의 주산지를 예측 부산물 발생량 기준으로 정렬."""
-    rows = []
-    if 작물 == "논벼":
-        for do in STATE["rice_dos"]:
-            r = predict(do, 작물, 면적_ha, 연도, 시군=None)
-            if r.get("ok"):
-                rows.append(r)
-    else:
-        for do in STATE["main_regions"].get(작물, []):
-            r = predict(do, 작물, 면적_ha, 연도, 시군=None)
-            if r.get("ok"):
-                rows.append(r)
+    """기업용: 해당 작물의 주산지를 예측 부산물 발생량 기준으로 정렬.
+    여러 지역을 한꺼번에 비교하므로 실시간 ASOS는 끄고(최근 연도 날씨로 근사) 빠르게 처리."""
+    global _LIVE_ENABLED
+    prev = _LIVE_ENABLED
+    _LIVE_ENABLED = False
+    try:
+        rows = []
+        if 작물 == "논벼":
+            for do in STATE["rice_dos"]:
+                r = predict(do, 작물, 면적_ha, 연도, 시군=None)
+                if r.get("ok"):
+                    rows.append(r)
+        else:
+            for do in STATE["main_regions"].get(작물, []):
+                r = predict(do, 작물, 면적_ha, 연도, 시군=None)
+                if r.get("ok"):
+                    rows.append(r)
+    finally:
+        _LIVE_ENABLED = prev
     rows.sort(key=lambda x: x["부산물합계_톤"], reverse=True)
     return rows[:top]
