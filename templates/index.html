@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AgriLoop — 농업 부산물 AI 예측 · 농가–기업 매칭 플랫폼</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,300..900,0..100&family=Pretendard:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" as="style" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="logo">AgriLoop</div>
+  <div class="nav-links">
+    <a href="#problem">문제 의식</a>
+    <a href="#how">작동 방식</a>
+    <a href="#demo">서비스</a>
+    <a href="#impact">기대 효과</a>
+    {% if mode == 'real' %}
+      <span class="mode-badge real"><span class="dot"></span>AI 모델 연결됨</span>
+    {% else %}
+      <span class="mode-badge sample"><span class="dot"></span>샘플 데모 모드</span>
+    {% endif %}
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-meta">
+    <span>농업 부산물 매칭 플랫폼 ⟶ AgriLoop</span>
+    <span>공공데이터 · 기상 · XGBoost</span>
+  </div>
+  <h1 class="fade-in">
+    버려지는 <span class="strike">부산물</span>이,<br>
+    새로운 <span class="accent">자원</span>으로.
+  </h1>
+  <div class="hero-bottom">
+    <p class="hero-desc fade-in delay-1">
+      AgriLoop는 농가가 입력한 재배 정보를 AI로 분석해 부산물 발생량과 적정 가격을 예측하고,
+      이를 필요로 하는 기업과 연결합니다.
+    </p>
+    <div class="stat-block fade-in delay-2">
+      <div class="label">예측 대상 작물</div>
+      <div class="number">9<span class="unit">종</span></div>
+    </div>
+    <div class="stat-block fade-in delay-3">
+      <div class="label">부산물 환산 계수</div>
+      <div class="number">RPR<span class="unit"> 기반</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- PROBLEM -->
+<section class="problem" id="problem">
+  <div class="problem-grid">
+    <div>
+      <span class="section-tag">문제 의식</span>
+      <h2>농가는 <em>버리고</em>,<br>기업은 <em>못 찾습니다</em></h2>
+    </div>
+    <div>
+      <div class="pain-card">
+        <span class="num">01</span>
+        <h4>처리 인프라 부재</h4>
+        <p>농가는 부산물 처리 방법을 몰라 소각·방치하는 경우가 많고, 이는 환경 부담으로 이어집니다.</p>
+      </div>
+      <div class="pain-card">
+        <span class="num">02</span>
+        <h4>분산된 공급망</h4>
+        <p>식품·사료·바이오 기업은 천연 원료를 찾지만, 국내 부산물 공급처가 흩어져 있어 확보가 어렵습니다.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW -->
+<section class="how" id="how">
+  <div class="how-header">
+    <div>
+      <span class="section-tag">작동 방식</span>
+      <h2>데이터가 <em>가치</em>를<br>만드는 과정</h2>
+    </div>
+    <p style="color: var(--olive); font-size: 16px;">
+      KOSIS 농작물생산조사, 기상청 ASOS 데이터를 학습한 예측 모델이
+      농가와 기업 양쪽에 가치를 제공합니다.
+    </p>
+  </div>
+  <div class="how-steps">
+    <div class="step">
+      <div class="step-num">01</div>
+      <h3>입력</h3>
+      <p>작물·지역·재배면적·연도를 농가가 직접 입력합니다. 별도 설치나 인증 없이 웹에서 바로.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">02</div>
+      <h3>AI 예측</h3>
+      <p>기상 조건과 전년 단수를 반영해 올해 단수를 예측하고, 부산물 발생계수(RPR)로 발생량을 환산합니다.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">03</div>
+      <h3>매칭</h3>
+      <p>예상 발생량·위치를 기준으로 부산물을 필요로 하는 기업과 농가를 연결합니다.</p>
+    </div>
+  </div>
+</section>
+
+<!-- DEMO -->
+<section class="demo" id="demo">
+  <div class="demo-header">
+    <span class="section-tag">서비스</span>
+    <h2>지금 바로 <em>예측</em>해보세요</h2>
+  </div>
+
+  <div class="demo-toggle">
+    <button class="toggle-btn active" data-panel="farmer">농가용</button>
+    <button class="toggle-btn" data-panel="company">기업용</button>
+  </div>
+
+  <!-- FARMER PANEL -->
+  <div class="demo-panel active" id="farmer-panel">
+    <div class="farmer-grid">
+      <div class="form-card">
+        <span class="label">STEP 1 / 작물 정보 입력</span>
+        <h3>내 농지의 부산물을<br>가치로 환산해보세요</h3>
+
+        <div class="form-group">
+          <label>재배 작물</label>
+          <select id="f-crop"></select>
+        </div>
+
+        <div class="form-group">
+          <label>농지 위치 (도)</label>
+          <select id="f-do"></select>
+        </div>
+
+        <div class="form-group" id="f-sigun-group">
+          <label>시·군 (논벼만 해당)</label>
+          <select id="f-sigun"></select>
+        </div>
+
+        <div class="form-group">
+          <label>재배 면적 (㎡)</label>
+          <input type="number" id="f-area" value="30000" />
+          <div class="tiny-note">1㏊ = 10,000㎡ · 입력값은 자동으로 ㏊로 환산됩니다.</div>
+        </div>
+
+        <div class="form-group">
+          <label>수확 연도</label>
+          <select id="f-year"></select>
+        </div>
+
+        <button class="submit-btn" id="f-submit">AI로 부산물 발생량 예측하기 →</button>
+      </div>
+
+      <div class="result-card" id="f-result">
+        <div class="result-empty" id="f-empty">
+          왼쪽에 정보를 입력하고<br>예측 버튼을 누르면<br>결과가 여기에 표시됩니다.
+        </div>
+        <div id="f-output" style="display:none;">
+          <h3 id="f-result-title">예측 결과</h3>
+          <div class="result-main"><span id="f-amount">0</span><span class="unit">kg</span></div>
+          <div class="result-sub" id="f-desc">예상 부산물 발생량</div>
+
+          <div id="f-byproducts"></div>
+
+          <div class="price-row" style="margin-top:8px;">
+            <span class="key">예측 단수</span>
+            <span class="val"><span id="f-yield">0</span> kg/10a</span>
+          </div>
+          <div class="price-row">
+            <span class="key">예상 총 수익</span>
+            <span class="val highlight">₩ <span id="f-revenue">0</span></span>
+          </div>
+          <div class="price-row">
+            <span class="key">소각·폐기 시 비용</span>
+            <span class="val" style="color: var(--rust);">- ₩ <span id="f-disposal">0</span></span>
+          </div>
+
+          <div class="tiny-note" id="f-via"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- COMPANY PANEL -->
+  <div class="demo-panel" id="company-panel">
+    <div class="company-grid">
+      <div class="search-panel">
+        <span class="label">소싱 검색</span>
+        <h3 style="font-family: 'Fraunces', serif; font-size: 28px; margin: 12px 0 32px; font-weight: 500;">
+          필요한 부산물의<br>공급처를 찾으세요</h3>
+
+        <div class="form-group">
+          <label>필요 부산물 (작물 기준)</label>
+          <select id="c-crop"></select>
+        </div>
+
+        <div class="form-group">
+          <label>기준 연도</label>
+          <select id="c-year"></select>
+        </div>
+
+        <button class="submit-btn" id="c-submit">공급 가능 지역 보기 →</button>
+        <div class="tiny-note">표준 면적 10㏊ 기준으로 각 주산지의 예상 발생량을 비교합니다.</div>
+      </div>
+
+      <div class="results-panel">
+        <h3>공급 가능 지역</h3>
+        <div class="results-meta" id="c-meta">작물을 선택하고 검색하세요</div>
+        <div id="c-results"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- IMPACT -->
+<section class="impact" id="impact">
+  <div class="impact-header">
+    <span class="section-tag">기대 효과</span>
+    <h2>버려진 자원이 <em>새로운 시장</em>이 됩니다</h2>
+    <p>농가 소득 증대, 기업 원료 비용 절감, 환경 부담 감소—세 주체가 모두 이익을 얻는 구조입니다.</p>
+  </div>
+  <div class="impact-grid">
+    <div class="impact-cell">
+      <div class="tag">FARMER</div>
+      <div class="big" style="margin-top: 16px;">추가<span class="unit"> 수익</span></div>
+      <div class="desc">버리던 부산물을 판매 자원으로 전환</div>
+    </div>
+    <div class="impact-cell">
+      <div class="tag">COMPANY</div>
+      <div class="big" style="margin-top: 16px;">원료<span class="unit"> 확보</span></div>
+      <div class="desc">분산된 공급처를 데이터로 가시화</div>
+    </div>
+    <div class="impact-cell">
+      <div class="tag">ENVIRONMENT</div>
+      <div class="big" style="margin-top: 16px;">소각<span class="unit"> 감소</span></div>
+      <div class="desc">방치·소각 대신 자원 순환</div>
+    </div>
+    <div class="impact-cell">
+      <div class="tag">DATA</div>
+      <div class="big" style="margin-top: 16px;">예측<span class="unit"> 기반</span></div>
+      <div class="desc">공공데이터·기상 학습 모델</div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-top">
+    <div class="footer-brand">
+      <h3>AgriLoop</h3>
+      <p>버려지던 농업 부산물을 데이터로 가시화하고, 농가와 기업을 연결하는 순환경제 플랫폼.</p>
+    </div>
+    <div class="footer-col">
+      <h5>서비스</h5>
+      <a href="#demo">농가용 예측</a>
+      <a href="#demo">기업용 소싱</a>
+    </div>
+    <div class="footer-col">
+      <h5>데이터</h5>
+      <a href="#how">KOSIS 생산조사</a>
+      <a href="#how">기상청 ASOS</a>
+    </div>
+    <div class="footer-col">
+      <h5>정보</h5>
+      <a href="#problem">문제 의식</a>
+      <a href="#impact">기대 효과</a>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>© 2026 AgriLoop · 캡스톤 프로젝트</span>
+    <span>Powered by XGBoost</span>
+  </div>
+</footer>
+
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

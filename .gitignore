@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+*.bak
+data/
+asos_cache/
+.DS_Store
