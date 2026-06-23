@@ -80,7 +80,9 @@ def create_listing():
 @market.route("/api/my-listings")
 @login_required
 def my_listings():
+    # 'deleted'(삭제된) 매물은 농가 목록에서 제외
     rows = (Listing.query.filter_by(user_id=current_user.id)
+            .filter(Listing.status != "deleted")
             .order_by(Listing.created_at.desc()).all())
     return jsonify({"ok": True, "listings": [r.to_dict() for r in rows]})
 
