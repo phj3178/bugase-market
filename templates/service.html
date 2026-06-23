@@ -1,20 +1,60 @@
 {% extends "base.html" %}
-{% block title %}AI 예측 — 부가새{% endblock %}
+{% block title %}서비스 — 부가새{% endblock %}
+
+{% block head %}
+<style>
+  /* 로그인 안내 게이트 */
+  #gate { max-width: 520px; margin: 80px auto; text-align: center; padding: 48px 36px;
+          background: var(--paper); border: 1px solid var(--line); border-radius: 12px; }
+  #gate h2 { font-family: 'Fraunces', serif; font-size: 26px; margin: 0 0 12px; }
+  #gate p { color: var(--olive-soft); font-size: 15px; line-height: 1.7; margin: 0 0 28px; }
+  #gate .gate-actions { display: flex; gap: 12px; justify-content: center; }
+  /* 기업 매물 검색 */
+  .mk-filters { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 24px; }
+  .mk-filters .fg label { display:block; font-size:12px; color:var(--olive); margin-bottom:5px; }
+  .mk-filters select { padding:10px 13px; border:1px solid var(--line-strong); border-radius:5px;
+                       font-size:14px; font-family:inherit; background:#fff; min-width:150px; }
+  .mk-card { background: var(--paper); border:1px solid var(--line); border-radius:8px;
+             padding:18px 20px; margin-bottom:12px; }
+  .mk-card .row1 { display:flex; justify-content:space-between; align-items:baseline; }
+  .mk-card .crop { font-family:'Fraunces',serif; font-size:18px; font-weight:600; }
+  .mk-card .amt { font-size:17px; font-weight:600; color:var(--olive); }
+  .mk-card .meta { font-size:13px; color:var(--olive-soft); margin-top:6px; line-height:1.6; }
+  .mk-actions { display:flex; gap:8px; justify-content:flex-end; align-items:center; margin-top:12px; }
+  .mk-badge { font-size:11px; padding:3px 9px; border-radius:100px; font-weight:600; }
+  .mk-badge.pending { background:#B5872018; color:#9a6f1a; }
+  .mk-badge.accepted { background:#4A532018; color:var(--olive); }
+  .mk-badge.rejected { background:#9B4A1F18; color:#9B4A1F; }
+  .mk-msg { width:100%; box-sizing:border-box; padding:9px 12px; border:1px solid var(--line-strong);
+            border-radius:5px; font-size:13px; font-family:inherit; margin-top:10px; }
+  .mk-btn { padding:9px 16px; border-radius:5px; border:none; font-size:13px; font-weight:600;
+            cursor:pointer; font-family:inherit; background:var(--ink); color:#fff; }
+  .mk-btn:hover { background:var(--olive); }
+  .mk-btn.map { background:#fff; border:1px solid var(--line-strong); color:var(--ink); }
+  .mk-empty { color:var(--olive-soft); font-size:14px; padding:24px 0; }
+</style>
+{% endblock %}
 
 {% block content %}
 <section class="demo" id="demo" style="padding-top: 72px;">
   <div class="demo-header">
     <span class="section-tag">서비스</span>
-    <h2>지금 바로 <em>예측</em>해보세요</h2>
+    <h2 id="service-heading">지금 바로 <em>예측</em>해보세요</h2>
   </div>
 
-  <div class="demo-toggle">
-    <button class="toggle-btn active" data-panel="farmer">농가용</button>
-    <button class="toggle-btn" data-panel="company">기업용</button>
+  <!-- (1) 로그인 안내 게이트 -->
+  <div id="gate" style="display:none;">
+    <h2>로그인이 필요한 서비스입니다</h2>
+    <p>부가새의 AI 예측과 부산물 거래는 회원 전용입니다.<br>
+       농가는 부산물을 등록하고, 기업은 원하는 부산물을 검색할 수 있어요.</p>
+    <div class="gate-actions">
+      <a href="/login" class="btn-primary">로그인</a>
+      <a href="/signup" class="btn-ghost">회원가입</a>
+    </div>
   </div>
 
-  <!-- FARMER PANEL -->
-  <div class="demo-panel active" id="farmer-panel">
+  <!-- (2) 농가: 예측 + 판매 등록 -->
+  <div id="farmer-view" style="display:none;">
     <div class="farmer-grid">
       <div class="form-card">
         <span class="label">STEP 1 / 작물 정보 입력</span>
@@ -24,26 +64,18 @@
           <label>재배 작물</label>
           <select id="f-crop"></select>
         </div>
-
         <div class="form-group">
           <label>농지 위치 (도)</label>
           <select id="f-do"></select>
         </div>
-
         <div class="form-group" id="f-sigun-group">
           <label>시·군 (논벼만 해당)</label>
           <select id="f-sigun"></select>
         </div>
-
         <div class="form-group">
           <label>재배 면적 (㎡)</label>
           <input type="number" id="f-area" value="30000" />
           <div class="tiny-note">1㏊ = 10,000㎡ · 입력값은 자동으로 ㏊로 환산됩니다.</div>
-        </div>
-
-        <div class="form-group">
-          <label>수확 연도</label>
-          <select id="f-year"></select>
         </div>
 
         <button class="submit-btn" id="f-submit">AI로 부산물 발생량 예측하기 →</button>
@@ -53,60 +85,19 @@
         <div class="result-empty" id="f-empty">
           왼쪽에 정보를 입력하고<br>예측 버튼을 누르면<br>결과가 여기에 표시됩니다.
         </div>
-        <div id="f-output" style="display:none;">
-          <h3 id="f-result-title">예측 결과</h3>
-          <div class="result-main"><span id="f-amount">0</span><span class="unit">kg</span></div>
-          <div class="result-sub" id="f-desc">예상 부산물 발생량</div>
-
-          <div id="f-byproducts"></div>
-
-          <div class="price-row" style="margin-top:8px;">
-            <span class="key">예측 단수</span>
-            <span class="val"><span id="f-yield">0</span> kg/10a</span>
-          </div>
-          <div class="price-row">
-            <span class="key">예상 총 수익</span>
-            <span class="val highlight">₩ <span id="f-revenue">0</span></span>
-          </div>
-          <div class="price-row">
-            <span class="key">소각·폐기 시 비용</span>
-            <span class="val" style="color: var(--rust);">- ₩ <span id="f-disposal">0</span></span>
-          </div>
-
-          <div class="tiny-note" id="f-via"></div>
-        </div>
+        <div id="f-output" style="display:none;"></div>
       </div>
     </div>
   </div>
 
-  <!-- COMPANY PANEL -->
-  <div class="demo-panel" id="company-panel">
-    <div class="company-grid">
-      <div class="search-panel">
-        <span class="label">소싱 검색</span>
-        <h3 style="font-family: 'Fraunces', serif; font-size: 28px; margin: 12px 0 32px; font-weight: 500;">
-          필요한 부산물의<br>공급처를 찾으세요</h3>
-
-        <div class="form-group">
-          <label>필요 부산물 (작물 기준)</label>
-          <select id="c-crop"></select>
-        </div>
-
-        <div class="form-group">
-          <label>기준 연도</label>
-          <select id="c-year"></select>
-        </div>
-
-        <button class="submit-btn" id="c-submit">공급 가능 지역 보기 →</button>
-        <div class="tiny-note">표준 면적 10㏊ 기준으로 각 주산지의 예상 발생량을 비교합니다.</div>
-      </div>
-
-      <div class="results-panel">
-        <h3>공급 가능 지역</h3>
-        <div class="results-meta" id="c-meta">작물을 선택하고 검색하세요</div>
-        <div id="c-results"></div>
-      </div>
+  <!-- (3) 기업: 실제 농가 매물 검색 -->
+  <div id="company-view" style="display:none;">
+    <div class="mk-filters">
+      <div class="fg"><label>작물</label><select id="mk-crop"><option value="">전체</option></select></div>
+      <div class="fg"><label>지역(도)</label><select id="mk-do"><option value="">전체</option></select></div>
+      <button class="mk-btn" onclick="searchMarket()">검색</button>
     </div>
+    <div id="mk-results"></div>
   </div>
 </section>
 {% endblock %}

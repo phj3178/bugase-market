@@ -67,7 +67,8 @@ class Listing(db.Model):
     harvest_date = db.Column(db.Date)                      # 수확 예정일
     note = db.Column(db.String(500))                       # 추가 설명(선택)
 
-    status = db.Column(db.String(12), default="selling")   # 'selling' | 'done'
+    status = db.Column(db.String(12), default="selling")   # 'selling' | 'done' | 'deleted'
+    delete_reason = db.Column(db.String(500))              # 판매자가 삭제 시 남기는 사유
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     requests = db.relationship("PurchaseRequest", backref="listing", lazy=True,
@@ -86,6 +87,7 @@ class Listing(db.Model):
             "harvest_date": self.harvest_date.isoformat() if self.harvest_date else None,
             "note": self.note,
             "status": self.status,
+            "delete_reason": self.delete_reason,
             "seller_name": self.seller.name if self.seller else None,
             "seller_phone": self.seller.phone if self.seller else None,
             "created_at": self.created_at.strftime("%Y-%m-%d") if self.created_at else None,

@@ -40,7 +40,17 @@ db.init_app(app)
 register_auth(app)
 register_market(app)
 with app.app_context():
-    db.create_all()  # bugase.db 없으면 자동 생성
+    db.create_all()  # 테이블 없으면 생성
+    # 기존 테이블에 새 컬럼이 없으면 추가 (데이터 보존 마이그레이션)
+    from sqlalchemy import inspect, text
+    try:
+        cols = [c["name"] for c in inspect(db.engine).get_columns("listings")]
+        if "delete_reason" not in cols:
+            with db.engine.begin() as conn:
+                conn.execute(text("ALTER TABLE listings ADD COLUMN delete_reason VARCHAR(500)"))
+            print("[부가새] listings.delete_reason 컬럼 추가됨")
+    except Exception as e:
+        print("[부가새] 스키마 점검 건너뜀:", e)
 
 # CORS 허용: 아임웹 등 다른 주소의 웹페이지에서 이 백엔드 API를 부를 수 있게 함.
 try:

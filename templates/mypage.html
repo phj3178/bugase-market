@@ -233,8 +233,11 @@ async function decide(id, decision) {
   renderFarmer();
 }
 async function delListing(id) {
-  if (!confirm("이 매물을 삭제할까요?")) return;
-  await fetch(`/api/listings/${id}`, {method:"DELETE"}); renderFarmer();
+  const reason = prompt("이 매물을 삭제합니다.\n구매 신청이 있던 경우, 입력하신 사유가 기업에게 표시됩니다.\n\n삭제 사유를 입력하세요 (선택):", "");
+  if (reason === null) return;  // 취소
+  await fetch(`/api/listings/${id}`, {method:"DELETE",
+    headers:{"Content-Type":"application/json"}, body: JSON.stringify({reason})});
+  renderFarmer();
 }
 
 async function renderCompany() {
@@ -260,12 +263,19 @@ async function searchListings() {
   if (!r.listings || !r.listings.length) { box.innerHTML=`<div class="empty">조건에 맞는 매물이 없습니다.</div>`; return; }
   box.innerHTML=""; r.listings.forEach(L => {
     const card=document.createElement("div"); card.className="card";
+    let actionArea;
+    if (L.my_request_status) {
+      const label={pending:"신청함 (대기중)",accepted:"수락됨",rejected:"거절됨"}[L.my_request_status]||L.my_request_status;
+      actionArea = `<span class="badge ${L.my_request_status}">${label}</span>`;
+    } else {
+      actionArea = `<input class="msg-input" id="msg-${L.id}" placeholder="농가에 남길 메시지 (예: 전량 구매 희망)" />
+        <div class="req-line"><span></span><button class="btn btn-dark" onclick="sendRequest(${L.id})">구매 신청</button></div>`;
+    }
     card.innerHTML = `<div class="row1"><span class="crop">${L.crop} · ${L.byproduct}</span>
       <span class="amt">${won(L.amount_ton)}톤</span></div>
       <div class="meta">${L.farm_location||L.do} · 수확 ${L.harvest_date||"미정"}
       ${L.price_won? " · 희망가 ₩"+won(L.price_won):" · 가격 협의"} · 판매자 ${L.seller_name}</div>
-      <input class="msg-input" id="msg-${L.id}" placeholder="농가에 남길 메시지 (예: 전량 구매 희망)" />
-      <div class="req-line"><span></span><button class="btn btn-dark" onclick="sendRequest(${L.id})">구매 신청</button></div>`;
+      ${actionArea}`;
     box.appendChild(card); });
 }
 async function sendRequest(id) {
@@ -282,11 +292,15 @@ async function loadMyRequests() {
     const L=req.listing||{};
     const contact=(req.status==="accepted" && req.farmer_phone)
       ? `<div class="contact">📞 ${req.farmer_name} 연락처: ${req.farmer_phone}</div>` : "";
+    // 판매자가 매물을 삭제한 경우 사유 표시
+    const deleted = (L.status==="deleted")
+      ? `<div class="contact" style="background:#9B4A1F12;border-color:#9B4A1F;color:#9B4A1F;">
+         ⚠ 판매자가 매물을 삭제했습니다. 사유: ${L.delete_reason||"미기재"}</div>` : "";
     const label={pending:"대기중",accepted:"수락됨",rejected:"거절됨"}[req.status]||req.status;
     const card=document.createElement("div"); card.className="card";
     card.innerHTML = `<div class="row1"><span class="crop">${L.crop||""} · ${L.byproduct||""}</span>
       <span class="badge ${req.status}">${label}</span></div>
-      <div class="meta">${L.farm_location||L.do||""} · ${won(L.amount_ton)}톤 · 판매자 ${L.seller_name||""}</div>${contact}`;
+      <div class="meta">${L.farm_location||L.do||""} · ${won(L.amount_ton)}톤 · 판매자 ${L.seller_name||""}</div>${contact}${deleted}`;
     box.appendChild(card); });
 }
 

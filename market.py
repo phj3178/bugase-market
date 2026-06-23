@@ -108,9 +108,21 @@ def delete_listing(listing_id):
     listing = db.session.get(Listing, listing_id)
     if not listing or listing.user_id != current_user.id:
         return jsonify({"ok": False, "사유": "권한이 없습니다."}), 403
+
+    reason = (request.get_json(force=True, silent=True) or {}).get("reason", "")
+    reason = str(reason).strip()[:500]
+
+    # 신청 이력이 있으면 완전 삭제 대신 '삭제됨'으로 표시 (기업이 사유를 볼 수 있게)
+    if listing.requests:
+        listing.status = "deleted"
+        listing.delete_reason = reason or "판매자에 의해 삭제되었습니다."
+        db.session.commit()
+        return jsonify({"ok": True, "soft": True})
+
+    # 신청 이력이 없으면 완전 삭제
     db.session.delete(listing)
     db.session.commit()
-    return jsonify({"ok": True})
+    return jsonify({"ok": True, "soft": False})
 
 
 # ---------------------------------------------------------
@@ -126,7 +138,19 @@ def list_listings():
     if do:
         q = q.filter_by(do=do)
     rows = q.order_by(Listing.created_at.desc()).limit(100).all()
-    return jsonify({"ok": True, "listings": [r.to_dict() for r in rows]})
+
+    # 로그인한 기업이면, 각 매물에 '내 신청 상태'를 표시 (중복 신청 버튼 방지)
+    my_status = {}
+    if current_user.is_authenticated and current_user.is_company:
+        reqs = PurchaseRequest.query.filter_by(company_id=current_user.id).all()
+        my_status = {r.listing_id: r.status for r in reqs}
+
+    out = []
+    for r in rows:
+        d = r.to_dict()
+        d["my_request_status"] = my_status.get(r.id)  # None|pending|accepted|rejected
+        out.append(d)
+    return jsonify({"ok": True, "listings": out})
 
 
 # =========================================================

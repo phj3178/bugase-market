@@ -1,4 +1,4 @@
-// AgriLoop 프론트엔드 — Flask 백엔드(/api/*)와 통신
+// 부가새 서비스 페이지 — 역할별(비로그인/농가/기업) 분기
 
 let OPTIONS = null;
 let ME = { authenticated: false };
@@ -6,64 +6,61 @@ let LAST_PRED = null;
 
 const won = (n) => Number(n || 0).toLocaleString("ko-KR");
 const kg = (t) => Math.round((t || 0) * 1000).toLocaleString("ko-KR");
+const PRED_YEAR = 2026; // 수확 연도 고정
 
-// ---------- 패널 토글 ----------
-document.querySelectorAll(".toggle-btn").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    document.querySelectorAll(".toggle-btn").forEach((b) => b.classList.remove("active"));
-    document.querySelectorAll(".demo-panel").forEach((p) => p.classList.remove("active"));
-    btn.classList.add("active");
-    document.getElementById(btn.dataset.panel + "-panel").classList.add("active");
-  });
-});
+// ---------- 진입점 ----------
+async function boot() {
+  try { ME = await (await fetch("/api/me")).json(); }
+  catch (e) { ME = { authenticated: false }; }
 
-// ---------- 옵션 로드 ----------
-async function loadOptions() {
-  try {
-    ME = await (await fetch("/api/me")).json();
-  } catch (e) { ME = { authenticated: false }; }
+  const gate = document.getElementById("gate");
+  const farmerView = document.getElementById("farmer-view");
+  const companyView = document.getElementById("company-view");
+  const heading = document.getElementById("service-heading");
 
-  const res = await fetch("/api/options");
-  OPTIONS = await res.json();
-
-  const fCrop = document.getElementById("f-crop");
-  const cCrop = document.getElementById("c-crop");
-  OPTIONS.crops.forEach((c) => {
-    fCrop.add(new Option(c.name, c.code));
-    cCrop.add(new Option(c.name, c.code));
-  });
-
-  // 연도 2017~2026
-  const fYear = document.getElementById("f-year");
-  const cYear = document.getElementById("c-year");
-  for (let y = 2026; y >= 2017; y--) {
-    fYear.add(new Option(y + "년", y));
-    cYear.add(new Option(y + "년", y));
+  // 비로그인: 농가 예측 화면을 보여주되, 예측 버튼을 누르면 로그인 요구
+  if (!ME.authenticated) {
+    OPTIONS = await (await fetch("/api/options")).json();
+    farmerView.style.display = "block";
+    heading.innerHTML = "지금 바로 <em>예측</em>해보세요";
+    initFarmer();
+    return;
   }
-  fYear.value = 2026;
-  cYear.value = 2026;
 
+  OPTIONS = await (await fetch("/api/options")).json();
+
+  if (ME.user_type === "farmer") {
+    farmerView.style.display = "block";
+    heading.innerHTML = "내 부산물 <em>등록하기</em>";
+    initFarmer();
+  } else {
+    companyView.style.display = "block";
+    heading.innerHTML = "부산물 <em>검색하기</em>";
+    initCompany();
+  }
+}
+
+/* ============================================================
+   농가: 예측 + 판매 등록
+   ============================================================ */
+function initFarmer() {
+  const fCrop = document.getElementById("f-crop");
+  OPTIONS.crops.forEach((c) => fCrop.add(new Option(c.name, c.code)));
   syncFarmerRegions();
   fCrop.addEventListener("change", syncFarmerRegions);
   document.getElementById("f-do").addEventListener("change", syncSigun);
+  document.getElementById("f-submit").addEventListener("click", runFarmerPredict);
 }
 
-// 작물에 따라 도 목록·시군 표시 여부 갱신
 function syncFarmerRegions() {
   const code = document.getElementById("f-crop").value;
   const name = OPTIONS.crops.find((c) => c.code === code)?.name;
   const fDo = document.getElementById("f-do");
   const sigunGroup = document.getElementById("f-sigun-group");
-
   fDo.innerHTML = "";
   let dos = [];
-  if (name === "논벼") {
-    dos = OPTIONS.rice_dos;
-    sigunGroup.style.display = "block";
-  } else {
-    dos = OPTIONS.crop_regions[code] || [];
-    sigunGroup.style.display = "none";
-  }
+  if (name === "논벼") { dos = OPTIONS.rice_dos; sigunGroup.style.display = "block"; }
+  else { dos = OPTIONS.crop_regions[code] || []; sigunGroup.style.display = "none"; }
   dos.forEach((d) => fDo.add(new Option(d, d)));
   syncSigun();
 }
@@ -80,36 +77,52 @@ function syncSigun() {
   list.forEach((s) => fSigun.add(new Option(s, s)));
 }
 
-// ---------- 농가 예측 ----------
-document.getElementById("f-submit").addEventListener("click", runFarmerPredict);
-
 async function runFarmerPredict() {
+  // 비로그인이면 예측을 막고 로그인/회원가입 안내
+  if (!ME.authenticated) {
+    showLoginPrompt();
+    return;
+  }
+
   const card = document.getElementById("f-result");
   card.classList.add("is-loading");
-
   const code = document.getElementById("f-crop").value;
   const name = OPTIONS.crops.find((c) => c.code === code)?.name;
   const payload = {
     crop: code,
     do: document.getElementById("f-do").value,
     sigun: name === "논벼" ? document.getElementById("f-sigun").value : null,
-    year: parseInt(document.getElementById("f-year").value),
+    year: PRED_YEAR,
     area_m2: parseFloat(document.getElementById("f-area").value) || 0,
   };
-
   try {
     const res = await fetch("/api/predict", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+      method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
     const data = await res.json();
     renderFarmerResult(data, name);
   } catch (e) {
-    showFarmerError("서버 통신에 실패했습니다. Flask 서버가 실행 중인지 확인하세요.");
+    showFarmerError("서버 통신에 실패했습니다. 잠시 후 다시 시도해주세요.");
   } finally {
     card.classList.remove("is-loading");
   }
+}
+
+function showLoginPrompt() {
+  document.getElementById("f-empty").style.display = "none";
+  const out = document.getElementById("f-output");
+  out.style.display = "block";
+  out.innerHTML = `
+    <div style="text-align:center; padding:32px 16px;">
+      <h3 style="font-family:'Fraunces',serif; font-size:22px; margin:0 0 10px;">로그인이 필요합니다</h3>
+      <p style="color:var(--olive-soft); font-size:14px; line-height:1.7; margin:0 0 24px;">
+        AI 예측과 부산물 거래는 회원 전용입니다.<br>로그인하거나 회원가입 후 이용해주세요.</p>
+      <div style="display:flex; gap:10px; justify-content:center;">
+        <a href="/login" class="btn-primary">로그인</a>
+        <a href="/signup" class="btn-ghost">회원가입</a>
+      </div>
+    </div>`;
 }
 
 function showFarmerError(msg) {
@@ -132,7 +145,6 @@ function renderFarmerResult(data, cropName) {
     return;
   }
 
-  // 정상 결과는 원래 레이아웃 복원이 필요할 수 있으므로 다시 구성
   out.innerHTML = `
     <h3 id="f-result-title">${data.연도}년 ${data.작물} 수확기 예측</h3>
     <div class="result-main"><span id="f-amount"></span><span class="unit">kg</span></div>
@@ -174,8 +186,6 @@ function renderFarmerResult(data, cropName) {
 
   let via = `예측 경로: ${data.예측경로}`;
   if (data.mode === "sample") via += " · ⚠ 샘플 데모 모드 (data/ 파일 미연결)";
-  if (data.실제단수_kg_10a !== undefined)
-    via += ` · 실제 ${data.실제단수_kg_10a} kg/10a (오차율 ${data["오차율_%"]}%)`;
   if (data.날씨정보) {
     const w = data.날씨정보;
     via += `<br>🌦 날씨: ${w.방식 || ""}`;
@@ -185,7 +195,6 @@ function renderFarmerResult(data, cropName) {
   }
   document.getElementById("f-via").innerHTML = via;
 
-  // 농가로 로그인했으면 '판매 등록' UI 추가
   LAST_PRED = data;
   renderSellSection(data);
 }
@@ -197,19 +206,6 @@ function renderSellSection(data) {
   box.style.paddingTop = "18px";
   box.style.borderTop = "1px solid var(--line)";
 
-  if (!ME.authenticated) {
-    box.innerHTML = `<div class="tiny-note">이 부산물을 기업에 판매하시겠어요?
-      <a href="/login" style="color:var(--olive);font-weight:600;">로그인</a> 후 등록할 수 있습니다.</div>`;
-    out.appendChild(box);
-    return;
-  }
-  if (ME.user_type !== "farmer") {
-    box.innerHTML = `<div class="tiny-note">판매 등록은 농가 회원만 가능합니다. (현재 기업 회원)</div>`;
-    out.appendChild(box);
-    return;
-  }
-
-  // 부산물 선택지
   const opts = data.부산물.map((b, i) =>
     `<option value="${i}">${b.이름} — ${b.발생량_톤.toLocaleString("ko-KR")}톤</option>`).join("");
   const loc = data.시군 ? `${data.도} ${data.시군}` : data.도;
@@ -217,26 +213,13 @@ function renderSellSection(data) {
   box.innerHTML = `
     <button class="submit-btn" id="sell-open" style="margin-top:0;">이 부산물 기업에 판매 등록하기 →</button>
     <div id="sell-form" style="display:none; margin-top:16px;">
-      <div class="form-group">
-        <label>판매할 부산물</label>
-        <select id="sell-bp">${opts}</select>
-      </div>
-      <div class="form-group">
-        <label>수확 예정일</label>
-        <input type="date" id="sell-date" />
-      </div>
-      <div class="form-group">
-        <label>희망 가격 (원, 선택)</label>
-        <input type="number" id="sell-price" placeholder="예: 3000000" />
-      </div>
-      <div class="form-group">
-        <label>농장 위치</label>
-        <input type="text" id="sell-loc" value="${loc}" placeholder="예: 전북 김제시 ○○면" />
-      </div>
-      <div class="form-group">
-        <label>추가 설명 (선택)</label>
-        <input type="text" id="sell-note" placeholder="예: 건조 완료, 상차 가능" />
-      </div>
+      <div class="form-group"><label>판매할 부산물</label><select id="sell-bp">${opts}</select></div>
+      <div class="form-group"><label>수확 예정일</label><input type="date" id="sell-date" /></div>
+      <div class="form-group"><label>희망 가격 (원, 선택)</label><input type="number" id="sell-price" placeholder="예: 3000000" /></div>
+      <div class="form-group"><label>농장 위치 (주소)</label>
+        <input type="text" id="sell-loc" value="${loc}" placeholder="예: 전북 김제시 ○○면 ○○리" />
+        <div class="tiny-note">정확한 주소를 입력하면 기업이 지도에서 위치를 확인할 수 있습니다.</div></div>
+      <div class="form-group"><label>추가 설명 (선택)</label><input type="text" id="sell-note" placeholder="예: 건조 완료, 상차 가능" /></div>
       <button class="submit-btn" id="sell-submit" style="margin-top:4px;">판매 등록 완료</button>
       <div class="tiny-note" id="sell-msg"></div>
     </div>`;
@@ -255,8 +238,7 @@ async function submitListing() {
   const bp = data.부산물[idx];
   const msg = document.getElementById("sell-msg");
   const btn = document.getElementById("sell-submit");
-  btn.disabled = true;
-  msg.textContent = "등록 중…";
+  btn.disabled = true; msg.textContent = "등록 중…";
 
   const payload = {
     crop: data.작물, do: data.도, sigun: data.시군,
@@ -266,7 +248,6 @@ async function submitListing() {
     farm_location: document.getElementById("sell-loc").value || null,
     note: document.getElementById("sell-note").value || null,
   };
-
   try {
     const res = await fetch("/api/listings", {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -275,79 +256,74 @@ async function submitListing() {
     const r = await res.json();
     if (r.ok) {
       document.getElementById("sell-form").innerHTML =
-        `<div class="flash-ok" style="padding:14px;border:1px solid var(--olive);border-radius:5px;
+        `<div style="padding:14px;border:1px solid var(--olive);border-radius:5px;
          color:var(--olive);font-size:14px;">✓ 매물이 등록되었습니다! 기업이 검색해서 볼 수 있어요.
          <br><b>${bp.이름} ${bp.발생량_톤.toLocaleString("ko-KR")}톤</b> · ${payload.farm_location || ""}</div>`;
+    } else { msg.textContent = "등록 실패: " + (r.사유 || "오류"); btn.disabled = false; }
+  } catch (e) { msg.textContent = "서버 통신 실패"; btn.disabled = false; }
+}
+
+/* ============================================================
+   기업: 실제 농가 매물 검색 + 구매 신청
+   ============================================================ */
+function initCompany() {
+  const sc = document.getElementById("mk-crop");
+  OPTIONS.crops.forEach((x) => sc.add(new Option(x.name, x.name)));
+  const sd = document.getElementById("mk-do");
+  [...new Set([...OPTIONS.rice_dos, ...Object.values(OPTIONS.crop_regions).flat()])]
+    .sort().forEach((d) => sd.add(new Option(d, d)));
+  searchMarket();
+}
+
+async function searchMarket() {
+  const crop = document.getElementById("mk-crop").value;
+  const doval = document.getElementById("mk-do").value;
+  const qs = new URLSearchParams();
+  if (crop) qs.set("crop", crop);
+  if (doval) qs.set("do", doval);
+  const box = document.getElementById("mk-results");
+  box.innerHTML = `<div class="mk-empty">불러오는 중…</div>`;
+  const r = await (await fetch("/api/listings?" + qs.toString())).json();
+  if (!r.listings || !r.listings.length) {
+    box.innerHTML = `<div class="mk-empty">조건에 맞는 매물이 없습니다.</div>`; return;
+  }
+  box.innerHTML = "";
+  r.listings.forEach((L) => {
+    const card = document.createElement("div");
+    card.className = "mk-card";
+    const mapBtn = L.farm_location
+      ? `<button class="mk-btn map" onclick="openMap('${encodeURIComponent(L.farm_location)}')">지도에서 보기</button>` : "";
+    let actions;
+    if (L.my_request_status) {
+      const label = {pending:"신청함 (대기중)",accepted:"수락됨",rejected:"거절됨"}[L.my_request_status] || L.my_request_status;
+      actions = `<div class="mk-actions">${mapBtn}<span class="mk-badge ${L.my_request_status}">${label}</span></div>`;
     } else {
-      msg.textContent = "등록 실패: " + (r.사유 || "오류");
-      btn.disabled = false;
+      actions = `<input class="mk-msg" id="mk-msg-${L.id}" placeholder="농가에 남길 메시지 (예: 전량 구매 희망)" />
+        <div class="mk-actions">${mapBtn}<button class="mk-btn" onclick="sendMarketRequest(${L.id})">구매 신청</button></div>`;
     }
-  } catch (e) {
-    msg.textContent = "서버 통신 실패";
-    btn.disabled = false;
-  }
-}
-
-// ---------- 기업 매칭 ----------
-document.getElementById("c-submit").addEventListener("click", runCompanyMatch);
-
-async function runCompanyMatch() {
-  const code = document.getElementById("c-crop").value;
-  const year = parseInt(document.getElementById("c-year").value);
-  const meta = document.getElementById("c-meta");
-  const box = document.getElementById("c-results");
-  meta.textContent = "검색 중…";
-  box.innerHTML = "";
-
-  try {
-    const res = await fetch("/api/match", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ crop: code, year: year, area_ha: 10 }),
-    });
-    const data = await res.json();
-    renderCompanyResults(data);
-  } catch (e) {
-    meta.textContent = "서버 통신 실패";
-  }
-}
-
-function renderCompanyResults(data) {
-  const meta = document.getElementById("c-meta");
-  const box = document.getElementById("c-results");
-  box.innerHTML = "";
-
-  if (!data.results || !data.results.length) {
-    meta.textContent = "공급 가능 지역이 없습니다.";
-    return;
-  }
-
-  const total = data.results.reduce((s, r) => s + r.부산물합계_톤, 0);
-  meta.textContent = `${data.results.length}개 지역 · 예상 공급량 합계 ${total.toLocaleString("ko-KR")}톤 (10㏊ 기준)`;
-
-  const max = data.results[0].부산물합계_톤 || 1;
-  data.results.forEach((r, i) => {
-    const score = Math.round((r.부산물합계_톤 / max) * 99);
-    const cls = score >= 85 ? "high" : score >= 70 ? "mid" : "";
-    const names = r.부산물.map((b) => b.이름).join(", ");
-    const div = document.createElement("div");
-    div.className = "farm-result";
-    div.innerHTML = `
-      <div class="score-circle ${cls}">${score}</div>
-      <div class="farm-info">
-        <h4>${r.도}</h4>
-        <div class="details">
-          <span>${names}</span>
-          <span class="dot">·</span>
-          <span>${r.연도}년</span>
-        </div>
-      </div>
-      <div class="farm-amount">
-        <div class="num">${Math.round(r.부산물합계_톤).toLocaleString("ko-KR")}</div>
-        <div class="unit-text">톤</div>
-      </div>`;
-    box.appendChild(div);
+    card.innerHTML = `
+      <div class="row1"><span class="crop">${L.crop} · ${L.byproduct}</span>
+        <span class="amt">${won(L.amount_ton)}톤</span></div>
+      <div class="meta">${L.farm_location || L.do} · 수확 ${L.harvest_date || "미정"}
+        ${L.price_won ? " · 희망가 ₩" + won(L.price_won) : " · 가격 협의"} · 판매자 ${L.seller_name}</div>
+      ${actions}`;
+    box.appendChild(card);
   });
 }
 
-loadOptions();
+function openMap(encodedAddr) {
+  // 카카오맵에서 주소 검색 (새 탭)
+  window.open("https://map.kakao.com/?q=" + encodedAddr, "_blank");
+}
+
+async function sendMarketRequest(id) {
+  const msg = document.getElementById("mk-msg-" + id).value;
+  const r = await (await fetch(`/api/listings/${id}/request`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message: msg }),
+  })).json();
+  if (r.ok) { alert("구매 신청을 보냈습니다. 농가가 수락하면 연락처가 공개됩니다."); searchMarket(); }
+  else alert("신청 실패: " + (r.사유 || "오류"));
+}
+
+boot();
