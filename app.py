@@ -49,6 +49,11 @@ with app.app_context():
             with db.engine.begin() as conn:
                 conn.execute(text("ALTER TABLE listings ADD COLUMN delete_reason VARCHAR(500)"))
             print("[부가새] listings.delete_reason 컬럼 추가됨")
+        pcols = [c["name"] for c in inspect(db.engine).get_columns("purchase_requests")]
+        if "reject_reason" not in pcols:
+            with db.engine.begin() as conn:
+                conn.execute(text("ALTER TABLE purchase_requests ADD COLUMN reject_reason VARCHAR(500)"))
+            print("[부가새] purchase_requests.reject_reason 컬럼 추가됨")
     except Exception as e:
         print("[부가새] 스키마 점검 건너뜀:", e)
 

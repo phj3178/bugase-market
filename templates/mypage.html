@@ -229,7 +229,12 @@ async function renderFarmer() {
     mbox.appendChild(card); }); }
 }
 async function decide(id, decision) {
-  await fetch(`/api/requests/${id}/decide`, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({decision})});
+  let reason = "";
+  if (decision === "rejected") {
+    reason = prompt("거절 사유를 입력하세요.\n입력하신 사유는 신청한 기업에게 표시됩니다.", "");
+    if (reason === null) return;  // 취소
+  }
+  await fetch(`/api/requests/${id}/decide`, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({decision, reason})});
   renderFarmer();
 }
 async function delListing(id) {
@@ -242,18 +247,12 @@ async function delListing(id) {
 
 async function renderCompany() {
   const c = document.getElementById("content");
-  c.innerHTML = `<div class="section"><h2>부산물 매물 검색</h2>
-    <div class="filters">
-      <div class="fg"><label>작물</label><select id="s-crop"><option value="">전체</option></select></div>
-      <div class="fg"><label>지역(도)</label><select id="s-do"><option value="">전체</option></select></div>
-      <button class="btn btn-dark" onclick="searchListings()">검색</button>
-    </div><div id="results"></div></div>
-    <div class="section"><h2>내 구매 신청 내역</h2><div id="myreq"></div></div>`;
-  const opt = await (await fetch("/api/options")).json();
-  const sc = document.getElementById("s-crop"); opt.crops.forEach(x => sc.add(new Option(x.name, x.name)));
-  const sd = document.getElementById("s-do");
-  [...new Set([...opt.rice_dos, ...Object.values(opt.crop_regions).flat()])].sort().forEach(d => sd.add(new Option(d, d)));
-  searchListings(); loadMyRequests();
+  c.innerHTML = `<div class="section">
+      <h2>내 구매 신청 내역</h2>
+      <p style="font-size:13px; color:var(--olive-soft); margin:0 0 16px;">
+        매물 검색은 <a href="/service" style="color:var(--olive); font-weight:600;">서비스 페이지</a>에서 할 수 있어요.</p>
+      <div id="myreq"></div></div>`;
+  loadMyRequests();
 }
 async function searchListings() {
   const crop=document.getElementById("s-crop").value, doval=document.getElementById("s-do").value;
@@ -263,13 +262,15 @@ async function searchListings() {
   if (!r.listings || !r.listings.length) { box.innerHTML=`<div class="empty">조건에 맞는 매물이 없습니다.</div>`; return; }
   box.innerHTML=""; r.listings.forEach(L => {
     const card=document.createElement("div"); card.className="card";
+    const mapBtn = L.farm_location
+      ? `<button class="btn btn-line" onclick="window.open('https://map.kakao.com/?q='+encodeURIComponent('${L.farm_location}'),'_blank')">지도에서 보기</button>` : "";
     let actionArea;
     if (L.my_request_status) {
       const label={pending:"신청함 (대기중)",accepted:"수락됨",rejected:"거절됨"}[L.my_request_status]||L.my_request_status;
-      actionArea = `<span class="badge ${L.my_request_status}">${label}</span>`;
+      actionArea = `<div class="req-line"><span></span><span>${mapBtn} <span class="badge ${L.my_request_status}">${label}</span></span></div>`;
     } else {
       actionArea = `<input class="msg-input" id="msg-${L.id}" placeholder="농가에 남길 메시지 (예: 전량 구매 희망)" />
-        <div class="req-line"><span></span><button class="btn btn-dark" onclick="sendRequest(${L.id})">구매 신청</button></div>`;
+        <div class="req-line"><span></span><span>${mapBtn} <button class="btn btn-dark" onclick="sendRequest(${L.id})">구매 신청</button></span></div>`;
     }
     card.innerHTML = `<div class="row1"><span class="crop">${L.crop} · ${L.byproduct}</span>
       <span class="amt">${won(L.amount_ton)}톤</span></div>
@@ -296,12 +297,31 @@ async function loadMyRequests() {
     const deleted = (L.status==="deleted")
       ? `<div class="contact" style="background:#9B4A1F12;border-color:#9B4A1F;color:#9B4A1F;">
          ⚠ 판매자가 매물을 삭제했습니다. 사유: ${L.delete_reason||"미기재"}</div>` : "";
+    // 거절된 경우 거절 사유 표시 (사유가 실제로 있을 때만)
+    const rejected = (req.status==="rejected" && req.reject_reason && req.reject_reason !== "사유 미기재")
+      ? `<div class="contact" style="background:#9B4A1F12;border-color:#9B4A1F;color:#9B4A1F;">
+         거절 사유: ${req.reject_reason}</div>` : "";
+    // 농장 위치 지도 (수락 여부와 무관하게 위치가 있으면 표시)
+    const mapBtn = L.farm_location
+      ? `<button class="btn btn-line" onclick="window.open('https://map.kakao.com/?q='+encodeURIComponent('${L.farm_location}'),'_blank')">지도에서 보기</button>` : "";
+    // 거절되었거나 매물이 삭제된 신청은 정리(삭제) 가능
+    const canDelete = (req.status === "rejected" || L.status === "deleted");
+    const delBtn = canDelete
+      ? `<button class="btn btn-line" onclick="delRequest(${req.id})">신청 내역 삭제</button>` : "";
+    const actions = (mapBtn || delBtn)
+      ? `<div class="req-line"><span></span><span style="display:flex;gap:8px;">${mapBtn}${delBtn}</span></div>` : "";
     const label={pending:"대기중",accepted:"수락됨",rejected:"거절됨"}[req.status]||req.status;
     const card=document.createElement("div"); card.className="card";
     card.innerHTML = `<div class="row1"><span class="crop">${L.crop||""} · ${L.byproduct||""}</span>
       <span class="badge ${req.status}">${label}</span></div>
-      <div class="meta">${L.farm_location||L.do||""} · ${won(L.amount_ton)}톤 · 판매자 ${L.seller_name||""}</div>${contact}${deleted}`;
+      <div class="meta">${L.farm_location||L.do||""} · ${won(L.amount_ton)}톤 · 판매자 ${L.seller_name||""}</div>${contact}${deleted}${rejected}${actions}`;
     box.appendChild(card); });
+}
+
+async function delRequest(id) {
+  if (!confirm("이 신청 내역을 삭제할까요?")) return;
+  await fetch(`/api/requests/${id}`, {method:"DELETE"});
+  loadMyRequests();
 }
 
 init();

@@ -225,6 +225,18 @@ def received_requests():
     return jsonify({"ok": True, "requests": out})
 
 
+# 기업: 내 구매 신청 삭제 (거절된 내역 정리 등)
+@market.route("/api/requests/<int:req_id>", methods=["DELETE"])
+@login_required
+def delete_request(req_id):
+    pr = db.session.get(PurchaseRequest, req_id)
+    if not pr or pr.company_id != current_user.id:
+        return jsonify({"ok": False, "사유": "권한이 없습니다."}), 403
+    db.session.delete(pr)
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
 # 농가: 신청 수락 / 거절
 @market.route("/api/requests/<int:req_id>/decide", methods=["POST"])
 @login_required
@@ -232,12 +244,14 @@ def decide_request(req_id):
     pr = db.session.get(PurchaseRequest, req_id)
     if not pr or not pr.listing or pr.listing.user_id != current_user.id:
         return jsonify({"ok": False, "사유": "권한이 없습니다."}), 403
-    decision = (request.get_json(force=True, silent=True) or {}).get("decision")
+    data = request.get_json(force=True, silent=True) or {}
+    decision = data.get("decision")
     if decision not in ("accepted", "rejected"):
         return jsonify({"ok": False, "사유": "잘못된 요청"}), 400
     pr.status = decision
-    # 수락하면 해당 매물을 거래완료로 변경
     if decision == "accepted":
-        pr.listing.status = "done"
+        pr.listing.status = "done"   # 수락 시 매물 거래완료
+    else:
+        pr.reject_reason = str(data.get("reason", "")).strip()[:500] or "사유 미기재"
     db.session.commit()
     return jsonify({"ok": True, "status": pr.status})
