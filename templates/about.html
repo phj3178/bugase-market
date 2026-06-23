@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}서비스 소개 — 부가새{% endblock %}
+
+{% block content %}
+<section class="problem" id="problem" style="padding-top: 80px;">
+  <div class="problem-grid">
+    <div>
+      <span class="section-tag">문제 의식</span>
+      <h2>농가는 <em>버리고</em>,<br>기업은 <em>못 찾습니다</em></h2>
+    </div>
+    <div>
+      <div class="pain-card">
+        <span class="num">01</span>
+        <h4>처리 인프라 부재</h4>
+        <p>농가는 부산물 처리 방법을 몰라 소각·방치하는 경우가 많고, 이는 환경 부담으로 이어집니다.</p>
+      </div>
+      <div class="pain-card">
+        <span class="num">02</span>
+        <h4>분산된 공급망</h4>
+        <p>식품·사료·바이오 기업은 천연 원료를 찾지만, 국내 부산물 공급처가 흩어져 있어 확보가 어렵습니다.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="how" id="how">
+  <div class="how-header">
+    <div>
+      <span class="section-tag">작동 방식</span>
+      <h2>데이터가 <em>가치</em>를<br>만드는 과정</h2>
+    </div>
+    <p style="color: var(--olive); font-size: 16px;">
+      KOSIS 농작물생산조사, 기상청 ASOS 데이터를 학습한 예측 모델이
+      농가와 기업 양쪽에 가치를 제공합니다.
+    </p>
+  </div>
+  <div class="how-steps">
+    <div class="step">
+      <div class="step-num">01</div>
+      <h3>입력</h3>
+      <p>작물·지역·재배면적·연도를 농가가 직접 입력합니다. 별도 설치나 인증 없이 웹에서 바로.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">02</div>
+      <h3>AI 예측</h3>
+      <p>기상 조건과 전년 단수를 반영해 올해 단수를 예측하고, 부산물 발생계수(RPR)로 발생량을 환산합니다.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">03</div>
+      <h3>거래</h3>
+      <p>농가는 예측 결과를 매물로 등록하고, 기업은 검색·구매 신청으로 농가와 직접 연결됩니다.</p>
+    </div>
+  </div>
+</section>
+
+<section class="impact" id="impact">
+  <div class="impact-header">
+    <span class="section-tag">기대 효과</span>
+    <h2>버려진 자원이 <em>새로운 시장</em>이 됩니다</h2>
+    <p>농가 소득 증대, 기업 원료 비용 절감, 환경 부담 감소—세 주체가 모두 이익을 얻는 구조입니다.</p>
+  </div>
+  <div class="impact-grid">
+    <div class="impact-cell">
+      <div class="tag">FARMER</div>
+      <div class="big" style="margin-top: 16px;">추가<span class="unit"> 수익</span></div>
+      <div class="desc">버리던 부산물을 판매 자원으로 전환</div>
+    </div>
+    <div class="impact-cell">
+      <div class="tag">COMPANY</div>
+      <div class="big" style="margin-top: 16px;">원료<span class="unit"> 확보</span></div>
+      <div class="desc">분산된 공급처를 데이터로 가시화</div>
+    </div>
+    <div class="impact-cell">
+      <div class="tag">ENVIRONMENT</div>
+      <div class="big" style="margin-top: 16px;">소각<span class="unit"> 감소</span></div>
+      <div class="desc">방치·소각 대신 자원 순환</div>
+    </div>
+    <div class="impact-cell">
+      <div class="tag">DATA</div>
+      <div class="big" style="margin-top: 16px;">예측<span class="unit"> 기반</span></div>
+      <div class="desc">공공데이터·기상 학습 모델</div>
+    </div>
+  </div>
+  <div style="text-align:center; margin-top: 56px;">
+    <a href="{{ url_for('service') }}" class="btn-primary">지금 예측해보기 →</a>
+  </div>
+</section>
+{% endblock %}

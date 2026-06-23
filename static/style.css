@@ -738,3 +738,19 @@
   font-size: 11px; color: var(--olive-soft); margin-top: 6px; line-height: 1.5;
 }
 .farm-result .score-circle.mid { background: var(--olive-soft); }
+
+/* ============ 페이지 분리: 네비 active + 히어로 버튼 ============ */
+.nav-links a.active { color: var(--olive); font-weight: 600; }
+.hero-actions { display: flex; gap: 14px; margin-top: 36px; flex-wrap: wrap; }
+.btn-primary {
+  display: inline-block; padding: 14px 28px; background: var(--ink); color: var(--bg);
+  border-radius: 4px; font-size: 15px; font-weight: 600; text-decoration: none;
+  transition: background .15s;
+}
+.btn-primary:hover { background: var(--olive); }
+.btn-ghost {
+  display: inline-block; padding: 14px 28px; background: transparent; color: var(--ink);
+  border: 1px solid var(--line-strong); border-radius: 4px; font-size: 15px; font-weight: 600;
+  text-decoration: none; transition: all .15s;
+}
+.btn-ghost:hover { border-color: var(--olive); color: var(--olive); }

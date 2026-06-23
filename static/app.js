@@ -1,6 +1,8 @@
 // AgriLoop 프론트엔드 — Flask 백엔드(/api/*)와 통신
 
 let OPTIONS = null;
+let ME = { authenticated: false };
+let LAST_PRED = null;
 
 const won = (n) => Number(n || 0).toLocaleString("ko-KR");
 const kg = (t) => Math.round((t || 0) * 1000).toLocaleString("ko-KR");
@@ -17,6 +19,10 @@ document.querySelectorAll(".toggle-btn").forEach((btn) => {
 
 // ---------- 옵션 로드 ----------
 async function loadOptions() {
+  try {
+    ME = await (await fetch("/api/me")).json();
+  } catch (e) { ME = { authenticated: false }; }
+
   const res = await fetch("/api/options");
   OPTIONS = await res.json();
 
@@ -170,7 +176,116 @@ function renderFarmerResult(data, cropName) {
   if (data.mode === "sample") via += " · ⚠ 샘플 데모 모드 (data/ 파일 미연결)";
   if (data.실제단수_kg_10a !== undefined)
     via += ` · 실제 ${data.실제단수_kg_10a} kg/10a (오차율 ${data["오차율_%"]}%)`;
-  document.getElementById("f-via").textContent = via;
+  if (data.날씨정보) {
+    const w = data.날씨정보;
+    via += `<br>🌦 날씨: ${w.방식 || ""}`;
+    if (w.실측구간 && w.실측구간 !== "실측없음") via += ` · 실측 ${w.실측일수}일`;
+    if (w.평년일수) via += ` · 평년 ${w.평년일수}일`;
+    if (w.생육기간) via += ` (생육기간 ${w.생육기간})`;
+  }
+  document.getElementById("f-via").innerHTML = via;
+
+  // 농가로 로그인했으면 '판매 등록' UI 추가
+  LAST_PRED = data;
+  renderSellSection(data);
+}
+
+function renderSellSection(data) {
+  const out = document.getElementById("f-output");
+  const box = document.createElement("div");
+  box.style.marginTop = "20px";
+  box.style.paddingTop = "18px";
+  box.style.borderTop = "1px solid var(--line)";
+
+  if (!ME.authenticated) {
+    box.innerHTML = `<div class="tiny-note">이 부산물을 기업에 판매하시겠어요?
+      <a href="/login" style="color:var(--olive);font-weight:600;">로그인</a> 후 등록할 수 있습니다.</div>`;
+    out.appendChild(box);
+    return;
+  }
+  if (ME.user_type !== "farmer") {
+    box.innerHTML = `<div class="tiny-note">판매 등록은 농가 회원만 가능합니다. (현재 기업 회원)</div>`;
+    out.appendChild(box);
+    return;
+  }
+
+  // 부산물 선택지
+  const opts = data.부산물.map((b, i) =>
+    `<option value="${i}">${b.이름} — ${b.발생량_톤.toLocaleString("ko-KR")}톤</option>`).join("");
+  const loc = data.시군 ? `${data.도} ${data.시군}` : data.도;
+
+  box.innerHTML = `
+    <button class="submit-btn" id="sell-open" style="margin-top:0;">이 부산물 기업에 판매 등록하기 →</button>
+    <div id="sell-form" style="display:none; margin-top:16px;">
+      <div class="form-group">
+        <label>판매할 부산물</label>
+        <select id="sell-bp">${opts}</select>
+      </div>
+      <div class="form-group">
+        <label>수확 예정일</label>
+        <input type="date" id="sell-date" />
+      </div>
+      <div class="form-group">
+        <label>희망 가격 (원, 선택)</label>
+        <input type="number" id="sell-price" placeholder="예: 3000000" />
+      </div>
+      <div class="form-group">
+        <label>농장 위치</label>
+        <input type="text" id="sell-loc" value="${loc}" placeholder="예: 전북 김제시 ○○면" />
+      </div>
+      <div class="form-group">
+        <label>추가 설명 (선택)</label>
+        <input type="text" id="sell-note" placeholder="예: 건조 완료, 상차 가능" />
+      </div>
+      <button class="submit-btn" id="sell-submit" style="margin-top:4px;">판매 등록 완료</button>
+      <div class="tiny-note" id="sell-msg"></div>
+    </div>`;
+  out.appendChild(box);
+
+  document.getElementById("sell-open").addEventListener("click", () => {
+    document.getElementById("sell-open").style.display = "none";
+    document.getElementById("sell-form").style.display = "block";
+  });
+  document.getElementById("sell-submit").addEventListener("click", submitListing);
+}
+
+async function submitListing() {
+  const data = LAST_PRED;
+  const idx = parseInt(document.getElementById("sell-bp").value);
+  const bp = data.부산물[idx];
+  const msg = document.getElementById("sell-msg");
+  const btn = document.getElementById("sell-submit");
+  btn.disabled = true;
+  msg.textContent = "등록 중…";
+
+  const payload = {
+    crop: data.작물, do: data.도, sigun: data.시군,
+    byproduct: bp.이름, amount_ton: bp.발생량_톤,
+    price_won: document.getElementById("sell-price").value || null,
+    harvest_date: document.getElementById("sell-date").value || null,
+    farm_location: document.getElementById("sell-loc").value || null,
+    note: document.getElementById("sell-note").value || null,
+  };
+
+  try {
+    const res = await fetch("/api/listings", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const r = await res.json();
+    if (r.ok) {
+      document.getElementById("sell-form").innerHTML =
+        `<div class="flash-ok" style="padding:14px;border:1px solid var(--olive);border-radius:5px;
+         color:var(--olive);font-size:14px;">✓ 매물이 등록되었습니다! 기업이 검색해서 볼 수 있어요.
+         <br><b>${bp.이름} ${bp.발생량_톤.toLocaleString("ko-KR")}톤</b> · ${payload.farm_location || ""}</div>`;
+    } else {
+      msg.textContent = "등록 실패: " + (r.사유 || "오류");
+      btn.disabled = false;
+    }
+  } catch (e) {
+    msg.textContent = "서버 통신 실패";
+    btn.disabled = false;
+  }
 }
 
 // ---------- 기업 매칭 ----------

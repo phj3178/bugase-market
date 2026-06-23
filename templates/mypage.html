@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>마이페이지 — 부가새</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300..700&family=Pretendard:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" as="style" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<style>
+  body { background: var(--bg, #F4F1E8); font-family: 'Pretendard', sans-serif; margin: 0; color: var(--ink,#1A1A17); }
+  .topbar { display: flex; justify-content: space-between; align-items: center;
+            padding: 18px 40px; border-bottom: 1px solid var(--line,#E0DCCF); background: var(--paper,#FBFAF5); }
+  .topbar .logo { font-family: 'Fraunces', serif; font-size: 22px; font-weight: 600; color: var(--olive,#4A5320); text-decoration: none; }
+  .topbar a { color: var(--ink,#1A1A17); text-decoration: none; font-size: 14px; margin-left: 18px; }
+  .topbar a.active { color: var(--olive,#4A5320); font-weight: 600; }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 36px 24px 80px; }
+  .page-title { font-family: 'Fraunces', serif; font-size: 30px; font-weight: 500; margin: 0 0 4px; }
+  .page-sub { color: var(--olive-soft,#8a8a6a); font-size: 14px; margin-bottom: 28px; }
+
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line,#E0DCCF); margin-bottom: 32px; flex-wrap: wrap; }
+  .tab { padding: 11px 18px; cursor: pointer; font-size: 14px; font-weight: 500; color: var(--olive-soft,#8a8a6a);
+         border: none; background: none; border-bottom: 2px solid transparent; font-family: inherit; }
+  .tab.active { color: var(--olive,#4A5320); font-weight: 600; border-bottom-color: var(--olive,#4A5320); }
+  .tabpanel { display: none; }
+  .tabpanel.active { display: block; }
+
+  .section { margin-bottom: 44px; }
+  .section h2 { font-size: 18px; font-weight: 600; margin: 0 0 16px; padding-bottom: 8px;
+                border-bottom: 2px solid var(--olive,#4A5320); display: inline-block; }
+  .card { background: var(--paper,#FBFAF5); border: 1px solid var(--line,#E0DCCF);
+          border-radius: 8px; padding: 18px 20px; margin-bottom: 12px; }
+  .card .row1 { display: flex; justify-content: space-between; align-items: baseline; }
+  .card .crop { font-family: 'Fraunces', serif; font-size: 18px; font-weight: 600; }
+  .card .amt { font-size: 17px; font-weight: 600; color: var(--olive,#4A5320); }
+  .card .meta { font-size: 13px; color: var(--olive-soft,#8a8a6a); margin-top: 6px; line-height: 1.6; }
+  .badge { font-size: 11px; padding: 3px 9px; border-radius: 100px; font-weight: 600; }
+  .badge.selling { background: #4A532018; color: var(--olive,#4A5320); }
+  .badge.done { background: #88888818; color: #777; }
+  .badge.pending { background: #B5872018; color: #9a6f1a; }
+  .badge.accepted { background: #4A532018; color: var(--olive,#4A5320); }
+  .badge.rejected { background: #9B4A1F18; color: #9B4A1F; }
+  .btn { padding: 9px 16px; border-radius: 5px; border: none; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; }
+  .btn-dark { background: var(--ink,#1A1A17); color: #fff; } .btn-dark:hover { background: var(--olive,#4A5320); }
+  .btn-olive { background: var(--olive,#4A5320); color: #fff; }
+  .btn-line { background: #fff; border: 1px solid var(--line-strong,#C9C4B4); color: var(--ink,#1A1A17); }
+  .btn-danger { background: #fff; border: 1px solid #9B4A1F; color: #9B4A1F; }
+  .btn-danger-fill { background: #9B4A1F; color: #fff; }
+  .filters { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; align-items: flex-end; }
+  .filters .fg label { display: block; font-size: 12px; color: var(--olive,#4A5320); margin-bottom: 5px; }
+  .filters select { padding: 9px 12px; border: 1px solid var(--line-strong,#C9C4B4); border-radius: 5px; font-size: 14px; font-family: inherit; background: #fff; min-width: 130px; }
+  .empty { color: var(--olive-soft,#8a8a6a); font-size: 14px; padding: 20px 0; }
+  .req-line { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px dashed var(--line,#E0DCCF); }
+  .req-line:first-child { border-top: none; }
+  .contact { background: #4A532012; border: 1px solid var(--olive,#4A5320); border-radius: 5px; padding: 8px 12px; font-size: 13px; color: var(--olive,#4A5320); margin-top: 8px; }
+  .msg-input { width: 100%; box-sizing: border-box; padding: 9px 12px; border: 1px solid var(--line-strong,#C9C4B4); border-radius: 5px; font-size: 13px; font-family: inherit; margin-top: 8px; }
+
+  .form-box { background: var(--paper,#FBFAF5); border: 1px solid var(--line,#E0DCCF); border-radius: 8px; padding: 28px 26px; max-width: 480px; }
+  .form-box .fg { margin-bottom: 16px; }
+  .form-box label { display: block; font-size: 13px; color: var(--olive,#4A5320); margin-bottom: 6px; font-weight: 500; }
+  .form-box input { width: 100%; box-sizing: border-box; padding: 11px 13px; border: 1px solid var(--line-strong,#C9C4B4); border-radius: 5px; font-size: 14px; font-family: inherit; background: #fff; }
+  .form-box input:disabled { background: #f0eee6; color: #999; }
+  .form-box input:focus { outline: none; border-color: var(--olive,#4A5320); }
+  .form-msg { font-size: 13px; margin-top: 12px; }
+  .form-msg.ok { color: var(--olive,#4A5320); } .form-msg.err { color: #9B4A1F; }
+  .danger-zone { border: 1px solid #9B4A1F; border-radius: 8px; padding: 24px; max-width: 480px; background: #9B4A1F08; }
+  .danger-zone h3 { color: #9B4A1F; margin: 0 0 8px; font-size: 16px; }
+  .danger-zone p { font-size: 13px; color: var(--olive-soft,#8a8a6a); line-height: 1.6; margin: 0 0 16px; }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <a href="/" class="logo">부가새</a>
+  <div>
+    <a href="/">홈</a>
+    <a href="/about">About</a>
+    <a href="/service">서비스</a>
+    <a href="/mypage" class="active">마이페이지</a>
+    <a href="{{ url_for('auth.logout') }}">로그아웃</a>
+  </div>
+</div>
+
+<div class="wrap">
+  <h1 class="page-title">마이페이지</h1>
+  <div class="page-sub" id="role-sub"></div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="trade">내 거래</button>
+    <button class="tab" data-tab="profile">개인정보 수정</button>
+    <button class="tab" data-tab="password">비밀번호 변경</button>
+    <button class="tab" data-tab="withdraw">회원 탈퇴</button>
+  </div>
+
+  <div class="tabpanel active" id="tab-trade"><div id="content"></div></div>
+
+  <div class="tabpanel" id="tab-profile">
+    <div class="section"><h2>개인정보 수정</h2>
+      <div class="form-box">
+        <div class="fg"><label>이메일 (변경 불가)</label><input id="p-email" disabled></div>
+        <div class="fg"><label>이름 / 상호명</label><input id="p-name"></div>
+        <div class="fg"><label>연락처</label><input id="p-phone" placeholder="010-0000-0000"></div>
+        <div class="fg"><label>지역</label><input id="p-region" placeholder="예: 전라북도 김제시"></div>
+        <button class="btn btn-dark" onclick="saveProfile()">저장</button>
+        <div class="form-msg" id="p-msg"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tabpanel" id="tab-password">
+    <div class="section"><h2>비밀번호 변경</h2>
+      <div class="form-box">
+        <div class="fg"><label>현재 비밀번호</label><input type="password" id="pw-current"></div>
+        <div class="fg"><label>새 비밀번호 (6자 이상)</label><input type="password" id="pw-new"></div>
+        <div class="fg"><label>새 비밀번호 확인</label><input type="password" id="pw-new2"></div>
+        <button class="btn btn-dark" onclick="changePassword()">비밀번호 변경</button>
+        <div class="form-msg" id="pw-msg"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tabpanel" id="tab-withdraw">
+    <div class="section"><h2>회원 탈퇴</h2>
+      <div class="danger-zone">
+        <h3>정말 탈퇴하시겠어요?</h3>
+        <p>탈퇴하면 계정 정보와 함께 등록한 매물·구매 신청 내역이 모두 삭제되며,
+           되돌릴 수 없습니다. 계속하려면 비밀번호를 입력하세요.</p>
+        <div class="fg" style="margin-bottom:14px;">
+          <input type="password" id="wd-pw" placeholder="비밀번호 확인"
+            style="width:100%;box-sizing:border-box;padding:11px 13px;border:1px solid var(--line-strong,#C9C4B4);border-radius:5px;font-size:14px;font-family:inherit;">
+        </div>
+        <button class="btn btn-danger-fill" onclick="withdraw()">회원 탈퇴</button>
+        <div class="form-msg" id="wd-msg"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const won = (n) => Number(n||0).toLocaleString("ko-KR");
+let ME = {};
+
+document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => {
+  document.querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
+  document.querySelectorAll(".tabpanel").forEach(x => x.classList.remove("active"));
+  t.classList.add("active");
+  document.getElementById("tab-" + t.dataset.tab).classList.add("active");
+}));
+
+async function init() {
+  ME = await (await fetch("/api/me")).json();
+  const acc = (await (await fetch("/api/account")).json()).account;
+  document.getElementById("role-sub").textContent =
+    `${acc.name}님 · ${acc.user_type === "farmer" ? "농가" : "기업"} 회원`;
+  document.getElementById("p-email").value = acc.email;
+  document.getElementById("p-name").value = acc.name;
+  document.getElementById("p-phone").value = acc.phone;
+  document.getElementById("p-region").value = acc.region;
+  if (ME.user_type === "farmer") renderFarmer(); else renderCompany();
+}
+
+async function saveProfile() {
+  const msg = document.getElementById("p-msg");
+  const r = await (await fetch("/api/account/profile", {method:"POST",
+    headers:{"Content-Type":"application/json"}, body: JSON.stringify({
+      name: document.getElementById("p-name").value,
+      phone: document.getElementById("p-phone").value,
+      region: document.getElementById("p-region").value })})).json();
+  if (r.ok) { msg.className="form-msg ok"; msg.textContent="✓ 저장되었습니다."; }
+  else { msg.className="form-msg err"; msg.textContent = r.사유 || "오류"; }
+}
+
+async function changePassword() {
+  const msg = document.getElementById("pw-msg");
+  const r = await (await fetch("/api/account/password", {method:"POST",
+    headers:{"Content-Type":"application/json"}, body: JSON.stringify({
+      current: document.getElementById("pw-current").value,
+      new: document.getElementById("pw-new").value,
+      new2: document.getElementById("pw-new2").value })})).json();
+  if (r.ok) { msg.className="form-msg ok"; msg.textContent="✓ 비밀번호가 변경되었습니다.";
+    document.getElementById("pw-current").value=""; document.getElementById("pw-new").value=""; document.getElementById("pw-new2").value=""; }
+  else { msg.className="form-msg err"; msg.textContent = r.사유 || "오류"; }
+}
+
+async function withdraw() {
+  if (!confirm("정말 탈퇴하시겠어요? 되돌릴 수 없습니다.")) return;
+  const msg = document.getElementById("wd-msg");
+  const r = await (await fetch("/api/account/delete", {method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({password: document.getElementById("wd-pw").value})})).json();
+  if (r.ok) { alert("탈퇴가 완료되었습니다. 이용해 주셔서 감사합니다."); location.href="/"; }
+  else { msg.className="form-msg err"; msg.textContent = r.사유 || "오류"; }
+}
+
+async function renderFarmer() {
+  const c = document.getElementById("content");
+  c.innerHTML = `<div class="section"><h2>받은 구매 신청</h2><div id="received"></div></div>
+                 <div class="section"><h2>내 등록 매물</h2><div id="mylist"></div></div>`;
+  const rq = await (await fetch("/api/received-requests")).json();
+  const rbox = document.getElementById("received");
+  if (!rq.requests || !rq.requests.length) rbox.innerHTML = `<div class="empty">아직 들어온 구매 신청이 없습니다.</div>`;
+  else { rbox.innerHTML=""; rq.requests.forEach(r => {
+    const L = r.listing || {};
+    let action = r.status==="pending"
+      ? `<button class="btn btn-olive" onclick="decide(${r.id},'accepted')">수락</button>
+         <button class="btn btn-danger" onclick="decide(${r.id},'rejected')">거절</button>`
+      : `<span class="badge ${r.status}">${r.status==='accepted'?'수락됨':'거절됨'}</span>`;
+    const contact = (r.status==="accepted" && r.company_phone)
+      ? `<div class="contact">📞 ${r.company_name} 연락처: ${r.company_phone}</div>` : "";
+    const card=document.createElement("div"); card.className="card";
+    card.innerHTML = `<div class="row1"><span class="crop">${L.crop||""} · ${L.byproduct||""}</span>
+      <span class="amt">${won(L.amount_ton)}톤</span></div>
+      <div class="meta">신청 기업: <b>${r.company_name||""}</b> · ${r.created_at||""}
+      ${r.message? "<br>메시지: "+r.message : ""}</div>
+      <div class="req-line"><span></span><span>${action}</span></div>${contact}`;
+    rbox.appendChild(card); }); }
+
+  const ml = await (await fetch("/api/my-listings")).json();
+  const mbox = document.getElementById("mylist");
+  if (!ml.listings || !ml.listings.length) mbox.innerHTML = `<div class="empty">등록한 매물이 없습니다. 서비스 페이지에서 예측 후 판매 등록해보세요.</div>`;
+  else { mbox.innerHTML=""; ml.listings.forEach(L => {
+    const card=document.createElement("div"); card.className="card";
+    card.innerHTML = `<div class="row1"><span class="crop">${L.crop} · ${L.byproduct}</span>
+      <span class="amt">${won(L.amount_ton)}톤</span></div>
+      <div class="meta">${L.farm_location||L.do} · 수확 ${L.harvest_date||"미정"}
+      ${L.price_won? " · 희망 ₩"+won(L.price_won):""} · 신청 ${L.request_count}건</div>
+      <div class="req-line"><span class="badge ${L.status}">${L.status==='selling'?'판매중':'거래완료'}</span>
+      <button class="btn btn-line" onclick="delListing(${L.id})">삭제</button></div>`;
+    mbox.appendChild(card); }); }
+}
+async function decide(id, decision) {
+  await fetch(`/api/requests/${id}/decide`, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({decision})});
+  renderFarmer();
+}
+async function delListing(id) {
+  if (!confirm("이 매물을 삭제할까요?")) return;
+  await fetch(`/api/listings/${id}`, {method:"DELETE"}); renderFarmer();
+}
+
+async function renderCompany() {
+  const c = document.getElementById("content");
+  c.innerHTML = `<div class="section"><h2>부산물 매물 검색</h2>
+    <div class="filters">
+      <div class="fg"><label>작물</label><select id="s-crop"><option value="">전체</option></select></div>
+      <div class="fg"><label>지역(도)</label><select id="s-do"><option value="">전체</option></select></div>
+      <button class="btn btn-dark" onclick="searchListings()">검색</button>
+    </div><div id="results"></div></div>
+    <div class="section"><h2>내 구매 신청 내역</h2><div id="myreq"></div></div>`;
+  const opt = await (await fetch("/api/options")).json();
+  const sc = document.getElementById("s-crop"); opt.crops.forEach(x => sc.add(new Option(x.name, x.name)));
+  const sd = document.getElementById("s-do");
+  [...new Set([...opt.rice_dos, ...Object.values(opt.crop_regions).flat()])].sort().forEach(d => sd.add(new Option(d, d)));
+  searchListings(); loadMyRequests();
+}
+async function searchListings() {
+  const crop=document.getElementById("s-crop").value, doval=document.getElementById("s-do").value;
+  const qs=new URLSearchParams(); if(crop) qs.set("crop",crop); if(doval) qs.set("do",doval);
+  const r = await (await fetch("/api/listings?"+qs.toString())).json();
+  const box=document.getElementById("results");
+  if (!r.listings || !r.listings.length) { box.innerHTML=`<div class="empty">조건에 맞는 매물이 없습니다.</div>`; return; }
+  box.innerHTML=""; r.listings.forEach(L => {
+    const card=document.createElement("div"); card.className="card";
+    card.innerHTML = `<div class="row1"><span class="crop">${L.crop} · ${L.byproduct}</span>
+      <span class="amt">${won(L.amount_ton)}톤</span></div>
+      <div class="meta">${L.farm_location||L.do} · 수확 ${L.harvest_date||"미정"}
+      ${L.price_won? " · 희망가 ₩"+won(L.price_won):" · 가격 협의"} · 판매자 ${L.seller_name}</div>
+      <input class="msg-input" id="msg-${L.id}" placeholder="농가에 남길 메시지 (예: 전량 구매 희망)" />
+      <div class="req-line"><span></span><button class="btn btn-dark" onclick="sendRequest(${L.id})">구매 신청</button></div>`;
+    box.appendChild(card); });
+}
+async function sendRequest(id) {
+  const msg=document.getElementById("msg-"+id).value;
+  const r = await (await fetch(`/api/listings/${id}/request`, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({message: msg})})).json();
+  if (r.ok) { alert("구매 신청을 보냈습니다. 농가가 수락하면 연락처가 공개됩니다."); loadMyRequests(); }
+  else alert("신청 실패: " + (r.사유 || "오류"));
+}
+async function loadMyRequests() {
+  const r = await (await fetch("/api/my-requests")).json();
+  const box=document.getElementById("myreq");
+  if (!r.requests || !r.requests.length) { box.innerHTML=`<div class="empty">아직 신청한 매물이 없습니다.</div>`; return; }
+  box.innerHTML=""; r.requests.forEach(req => {
+    const L=req.listing||{};
+    const contact=(req.status==="accepted" && req.farmer_phone)
+      ? `<div class="contact">📞 ${req.farmer_name} 연락처: ${req.farmer_phone}</div>` : "";
+    const label={pending:"대기중",accepted:"수락됨",rejected:"거절됨"}[req.status]||req.status;
+    const card=document.createElement("div"); card.className="card";
+    card.innerHTML = `<div class="row1"><span class="crop">${L.crop||""} · ${L.byproduct||""}</span>
+      <span class="badge ${req.status}">${label}</span></div>
+      <div class="meta">${L.farm_location||L.do||""} · ${won(L.amount_ton)}톤 · 판매자 ${L.seller_name||""}</div>${contact}`;
+    box.appendChild(card); });
+}
+
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+*.bak
+bugase.db
+data/
+.DS_Store

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>로그인 — 부가새</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300..700&family=Pretendard:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" as="style" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<style>
+  body { background: var(--bg, #F4F1E8); font-family: 'Pretendard', sans-serif; margin: 0;
+         min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 40px 20px; }
+  .auth-card { width: 100%; max-width: 400px; background: var(--paper, #FBFAF5);
+               border: 1px solid var(--line, #E0DCCF); border-radius: 10px; padding: 44px 40px; }
+  .auth-logo { font-family: 'Fraunces', serif; font-size: 30px; font-weight: 600;
+               color: var(--olive, #4A5320); text-align: center; margin-bottom: 6px; }
+  .auth-sub { text-align: center; color: var(--olive-soft, #8a8a6a); font-size: 13px; margin-bottom: 32px; }
+  .auth-card h2 { font-size: 19px; color: var(--ink, #1A1A17); margin: 0 0 22px; font-weight: 600; }
+  .field { margin-bottom: 16px; }
+  .field label { display: block; font-size: 13px; color: var(--olive, #4A5320); margin-bottom: 6px; font-weight: 500; }
+  .field input { width: 100%; box-sizing: border-box; padding: 11px 13px;
+               border: 1px solid var(--line-strong, #C9C4B4); border-radius: 5px; font-size: 14px;
+               font-family: inherit; background: #fff; color: var(--ink, #1A1A17); }
+  .field input:focus { outline: none; border-color: var(--olive, #4A5320); }
+  .submit-btn { width: 100%; padding: 13px; background: var(--ink, #1A1A17); color: #fff; border: none;
+               border-radius: 5px; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 8px;
+               font-family: inherit; }
+  .submit-btn:hover { background: var(--olive, #4A5320); }
+  .auth-foot { text-align: center; margin-top: 22px; font-size: 13px; color: var(--olive-soft, #8a8a6a); }
+  .auth-foot a { color: var(--olive, #4A5320); font-weight: 600; text-decoration: none; }
+  .flash { padding: 11px 14px; border-radius: 5px; font-size: 13px; margin-bottom: 18px; }
+  .flash.error { background: #9B4A1F18; border: 1px solid #9B4A1F; color: #9B4A1F; }
+  .flash.success { background: #4A532018; border: 1px solid var(--olive, #4A5320); color: var(--olive, #4A5320); }
+</style>
+</head>
+<body>
+<div class="auth-card">
+  <div class="auth-logo">부가새</div>
+  <div class="auth-sub">부산물의 가치를 새롭게</div>
+  <h2>로그인</h2>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, msg in messages %}
+      <div class="flash {{ category }}">{{ msg }}</div>
+    {% endfor %}
+  {% endwith %}
+
+  <form method="POST" action="{{ url_for('auth.login') }}">
+    <div class="field">
+      <label>이메일</label>
+      <input type="email" name="email" value="{{ form.get('email','') }}" placeholder="example@email.com" required>
+    </div>
+    <div class="field">
+      <label>비밀번호</label>
+      <input type="password" name="password" placeholder="비밀번호" required>
+    </div>
+    <button type="submit" class="submit-btn">로그인</button>
+  </form>
+
+  <div class="auth-foot">
+    아직 회원이 아니신가요? <a href="{{ url_for('auth.signup') }}">회원가입</a>
+  </div>
+</div>
+</body>
+</html>

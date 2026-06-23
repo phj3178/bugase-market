@@ -1,30 +1,57 @@
 # -*- coding: utf-8 -*-
 """
-AgriLoop Flask 서버.
+부가새 (Bugase) Flask 서버 — 거래 플랫폼 버전.
 
 실행:
     pip install -r requirements.txt
+    python init_db.py     # 최초 1회 (DB 생성)
     python app.py
     -> http://127.0.0.1:5000
 """
-from flask import Flask, render_template, request, jsonify
+import os
+from flask import Flask, render_template, request, jsonify, redirect, url_for
 
 import model
 import config
+from models_db import db
+from auth import register_auth
+from market import register_market
 
 app = Flask(__name__)
 
+# --- 기본 설정 ---
+app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "bugase-dev-secret-change-me")
+
+# DB 주소: 환경변수 DATABASE_URL 이 있으면 그것(배포: PostgreSQL),
+# 없으면 로컬 SQLite 파일을 사용한다.
+db_url = os.environ.get("DATABASE_URL")
+if db_url:
+    # Render/Heroku는 'postgres://'로 주는데 SQLAlchemy는 'postgresql://'를 요구
+    if db_url.startswith("postgres://"):
+        db_url = db_url.replace("postgres://", "postgresql://", 1)
+else:
+    db_url = "sqlite:///" + os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "bugase.db")
+app.config["SQLALCHEMY_DATABASE_URI"] = db_url
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+# --- 데이터베이스 + 로그인 연결 ---
+db.init_app(app)
+register_auth(app)
+register_market(app)
+with app.app_context():
+    db.create_all()  # bugase.db 없으면 자동 생성
+
 # CORS 허용: 아임웹 등 다른 주소의 웹페이지에서 이 백엔드 API를 부를 수 있게 함.
-# flask-cors가 설치돼 있으면 켜고, 없으면(로컬 테스트 등) 조용히 넘어간다.
 try:
     from flask_cors import CORS
     CORS(app)
 except ImportError:
-    print("[AgriLoop] flask-cors 미설치 → CORS 비활성 (로컬 테스트는 문제 없음)")
+    print("[부가새] flask-cors 미설치 → CORS 비활성 (로컬 테스트는 문제 없음)")
 
 # 앱 시작 시 모델 1회 로드/학습
 MODE = model.load_and_train()
-print(f"[AgriLoop] 모델 모드: {MODE.upper()}  "
+print(f"[부가새] 모델 모드: {MODE.upper()}  "
       f"({'실제 XGBoost 모델' if MODE == 'real' else 'data/ 파일 없음 → 샘플 데모'})")
 
 
@@ -51,12 +78,40 @@ def _attach_price(result):
 
 @app.route("/")
 def index():
-    return render_template("index.html", mode=MODE)
+    return render_template("home.html", mode=MODE, active="home")
+
+
+@app.route("/about")
+def about():
+    return render_template("about.html", mode=MODE, active="about")
+
+
+@app.route("/service")
+def service():
+    return render_template("service.html", mode=MODE, active="service")
 
 
 @app.route("/api/options")
 def api_options():
     return jsonify(model.list_options())
+
+
+@app.route("/api/me")
+def api_me():
+    """프론트가 현재 로그인 상태/유형을 알 수 있게 한다."""
+    from flask_login import current_user
+    if current_user.is_authenticated:
+        return jsonify({"authenticated": True, "user_type": current_user.user_type,
+                        "name": current_user.name})
+    return jsonify({"authenticated": False})
+
+
+@app.route("/mypage")
+def mypage():
+    from flask_login import current_user
+    if not current_user.is_authenticated:
+        return redirect(url_for("auth.login", next="/mypage"))
+    return render_template("mypage.html", mode=MODE, active="mypage")
 
 
 @app.route("/api/predict", methods=["POST"])

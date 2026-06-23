@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}부가새 — 부산물의 가치를 새롭게{% endblock %}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,300..900,0..100&family=Pretendard:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" as="style" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+{% block head %}{% endblock %}
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="{{ url_for('index') }}" class="logo" style="text-decoration:none;">부가새</a>
+  <div class="nav-links">
+    <a href="{{ url_for('index') }}" {% if active=='home' %}class="active"{% endif %}>홈</a>
+    <a href="{{ url_for('about') }}" {% if active=='about' %}class="active"{% endif %}>About</a>
+    <a href="{{ url_for('service') }}" {% if active=='service' %}class="active"{% endif %}>서비스</a>
+    {% if current_user.is_authenticated %}
+      <a href="{{ url_for('mypage') }}" {% if active=='mypage' %}class="active"{% endif %}>마이페이지</a>
+      <a href="{{ url_for('auth.logout') }}" style="color: var(--olive);">{{ current_user.name }}님 · 로그아웃</a>
+    {% else %}
+      <a href="{{ url_for('auth.login') }}">로그인</a>
+      <a href="{{ url_for('auth.signup') }}" style="color: var(--olive); font-weight:600;">회원가입</a>
+    {% endif %}
+    {% if mode == 'real' %}
+      <span class="mode-badge real"><span class="dot"></span>AI 모델 연결됨</span>
+    {% else %}
+      <span class="mode-badge sample"><span class="dot"></span>샘플 데모 모드</span>
+    {% endif %}
+  </div>
+</nav>
+
+{% block content %}{% endblock %}
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-top">
+    <div class="footer-brand">
+      <h3>부가새</h3>
+      <p>부산물의 가치를 새롭게. 버려지던 농업 부산물을 AI로 가시화하고, 농가와 기업을 연결하는 순환경제 플랫폼.</p>
+    </div>
+    <div class="footer-col">
+      <h5>서비스</h5>
+      <a href="{{ url_for('service') }}">농가용 예측</a>
+      <a href="{{ url_for('service') }}">기업용 소싱</a>
+    </div>
+    <div class="footer-col">
+      <h5>데이터</h5>
+      <a href="{{ url_for('about') }}">KOSIS 생산조사</a>
+      <a href="{{ url_for('about') }}">기상청 ASOS</a>
+    </div>
+    <div class="footer-col">
+      <h5>정보</h5>
+      <a href="{{ url_for('about') }}">서비스 소개</a>
+      <a href="{{ url_for('about') }}">기대 효과</a>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>© 2026 부가새 · 캡스톤 프로젝트</span>
+    <span>Powered by XGBoost</span>
+  </div>
+</footer>
+
+{% block scripts %}{% endblock %}
+</body>
+</html>
