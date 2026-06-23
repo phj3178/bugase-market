@@ -1,6 +1,6 @@
-__pycache__/
+﻿__pycache__/
 *.pyc
 *.bak
+bugase.db
 data/
-asos_cache/
 .DS_Store
