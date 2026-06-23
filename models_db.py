@@ -105,6 +105,7 @@ class PurchaseRequest(db.Model):
 
     message = db.Column(db.String(500))                    # 기업이 남기는 메시지
     status = db.Column(db.String(12), default="pending")   # pending|accepted|rejected
+    reject_reason = db.Column(db.String(500))              # 농가가 거절 시 남기는 사유
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def to_dict(self):
@@ -115,5 +116,6 @@ class PurchaseRequest(db.Model):
             "company_phone": self.buyer.phone if self.buyer else None,
             "message": self.message,
             "status": self.status,
+            "reject_reason": self.reject_reason,
             "created_at": self.created_at.strftime("%Y-%m-%d %H:%M") if self.created_at else None,
         }
