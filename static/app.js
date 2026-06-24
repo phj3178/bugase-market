@@ -50,6 +50,23 @@ function initFarmer() {
   fCrop.addEventListener("change", syncFarmerRegions);
   document.getElementById("f-do").addEventListener("change", syncSigun);
   document.getElementById("f-submit").addEventListener("click", runFarmerPredict);
+  // 면적 단위 변경 시 안내 문구 갱신
+  const unitSel = document.getElementById("f-area-unit");
+  if (unitSel) {
+    const notes = {
+      pyeong: "평 단위로 입력하세요 · 1평 ≈ 3.3㎡ (자동 환산)",
+      m2: "제곱미터(㎡)로 입력하세요 · 1㏊ = 10,000㎡ (자동 환산)",
+      ha: "헥타르(㏊)로 입력하세요 · 1㏊ = 10,000㎡ = 약 3,025평",
+    };
+    const defaults = { pyeong: 3000, m2: 10000, ha: 1 };
+    unitSel.addEventListener("change", () => {
+      const u = unitSel.value;
+      const note = document.getElementById("f-area-note");
+      if (note) note.textContent = notes[u] || "";
+      const areaInput = document.getElementById("f-area");
+      if (areaInput) areaInput.value = defaults[u];
+    });
+  }
 }
 
 function syncFarmerRegions() {
@@ -88,12 +105,17 @@ async function runFarmerPredict() {
   card.classList.add("is-loading");
   const code = document.getElementById("f-crop").value;
   const name = OPTIONS.crops.find((c) => c.code === code)?.name;
+  // 선택한 단위를 ㎡로 환산 (서버는 ㎡ → ㏊로 처리)
+  const areaVal = parseFloat(document.getElementById("f-area").value) || 0;
+  const unit = (document.getElementById("f-area-unit") || {}).value || "pyeong";
+  const toM2 = { pyeong: 3.305785, m2: 1, ha: 10000 };
+  const areaM2 = areaVal * (toM2[unit] || 1);
   const payload = {
     crop: code,
     do: document.getElementById("f-do").value,
     sigun: name === "논벼" ? document.getElementById("f-sigun").value : null,
     year: PRED_YEAR,
-    area_m2: parseFloat(document.getElementById("f-area").value) || 0,
+    area_m2: areaM2,
   };
   try {
     const res = await fetch("/api/predict", {

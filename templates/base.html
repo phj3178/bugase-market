@@ -26,15 +26,17 @@
       <a href="{{ url_for('auth.logout') }}" style="color: var(--olive);">{{ current_user.name }}님 · 로그아웃</a>
     {% else %}
       <a href="{{ url_for('auth.login') }}">로그인</a>
-      <a href="{{ url_for('auth.signup') }}" style="color: var(--olive); font-weight:600;">회원가입</a>
-    {% endif %}
-    {% if mode == 'real' %}
-      <span class="mode-badge real"><span class="dot"></span>AI 모델 연결됨</span>
-    {% else %}
-      <span class="mode-badge sample"><span class="dot"></span>샘플 데모 모드</span>
+      <a href="{{ url_for('auth.signup') }}" style="color: var(--olive); font-weight:700;">회원가입</a>
     {% endif %}
   </div>
 </nav>
+
+<!-- AI 모델 상태 배지 (우측 하단 고정) -->
+{% if mode == 'real' %}
+  <span class="mode-badge-fixed real"><span class="dot"></span>AI 모델 연결됨</span>
+{% else %}
+  <span class="mode-badge-fixed sample"><span class="dot"></span>샘플 데모 모드</span>
+{% endif %}
 
 {% block content %}{% endblock %}
 
@@ -62,8 +64,7 @@
     </div>
   </div>
   <div class="footer-bottom">
-    <span>© 2026 부가새</span>
-    <span>Powered by XGBoost</span>
+    <span>COPYRIGHT © 2026 부가새(BUGASE). ALL RIGHTS RESERVED.</span>
   </div>
 </footer>
 
