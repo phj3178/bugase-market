@@ -1,39 +1,50 @@
 {% extends "base.html" %}
-{% block title %}부가새 — 부산물의 가치를 새롭게{% endblock %}
-
+{% block title %}부가새{% endblock %}
+{% block head %}
+<style>
+  .hero-main { position: relative; min-height: calc(100vh - 72px); overflow: hidden;
+    display: flex; flex-direction: column; justify-content: flex-end; padding: 80px clamp(32px,7vw,96px) 56px; }
+  .hero-main .bg { position:absolute; inset:0; z-index:0;
+    background-image: url("{{ url_for('static', filename='img/hero-sunset.jpg') }}");
+    background-size: cover; background-position: center; }
+  .hero-main::before { content:""; position:absolute; inset:0; z-index:1;
+    background: linear-gradient(180deg, rgba(20,22,12,.28) 0%, rgba(20,22,12,0) 22%, rgba(20,22,12,0) 40%, rgba(20,22,12,.72) 80%, rgba(20,22,12,.9) 100%); }
+  .hero-main > .inner { position:relative; z-index:2; max-width:720px; }
+  .hero-tag { display:inline-flex; align-items:center; gap:8px; font-size:13px; color:#EDE8DA;
+    border:1px solid rgba(255,255,255,.45); border-radius:100px; padding:7px 16px; margin-bottom:22px;
+    background:rgba(20,22,12,.3); backdrop-filter:blur(3px); }
+  .hero-tag .dot { width:7px; height:7px; border-radius:50%; background:var(--mustard); }
+  .hero-main h1 { font-family:'Fraunces',serif; font-weight:500; color:#fff;
+    font-size:clamp(38px,5.6vw,68px); line-height:1.12; margin:0; text-shadow:0 2px 28px rgba(0,0,0,.6); }
+  .hero-main h1 .accent { color:var(--mustard); font-style:italic; }
+  .hero-main h1 .strike { position:relative; }
+  .hero-main h1 .strike::after { content:""; position:absolute; left:-2%; right:-2%; top:55%; height:4px;
+    background:var(--mustard); transform:rotate(-2deg); border-radius:2px; }
+  .hero-desc { color:#F0EBDE; font-size:clamp(15px,1.6vw,18px); line-height:1.7; margin:24px 0 0; max-width:540px; text-shadow:0 1px 14px rgba(0,0,0,.7); }
+  .hero-actions { display:flex; gap:14px; margin-top:34px; flex-wrap:wrap; }
+  .hero-actions .btn-primary { padding:15px 30px; background:var(--mustard); color:#1C1A14; border-radius:6px; font-size:15px; font-weight:700; text-decoration:none; box-shadow:0 6px 22px rgba(201,137,42,.45); }
+  .hero-actions .btn-ghost { padding:15px 30px; background:rgba(255,255,255,.12); color:#fff; border:1px solid rgba(255,255,255,.6); border-radius:6px; font-size:15px; font-weight:600; text-decoration:none; backdrop-filter:blur(3px); }
+  .hero-stats { display:flex; gap:44px; margin-top:44px; flex-wrap:wrap; border-top:1px solid rgba(255,255,255,.25); padding-top:24px; }
+  .hero-stats .stat .label { font-size:13px; color:#D8D1C0; margin-bottom:5px; }
+  .hero-stats .stat .number { font-family:'Fraunces',serif; font-size:30px; font-weight:600; color:#fff; }
+  .hero-stats .stat .number .unit { font-size:14px; font-weight:400; color:#D8D1C0; margin-left:2px; }
+</style>
+{% endblock %}
 {% block content %}
-<section class="hero">
-  <div class="hero-meta">
-    <span>농업 부산물 매칭 플랫폼 ⟶ 부가새</span>
-    <span>부산물의 가치를 새롭게</span>
-  </div>
-  <h1 class="fade-in">
-    버려지는 <span class="strike">부산물</span>이,<br>
-    새로운 <span class="accent">자원</span>으로.
-  </h1>
-
-  <p class="hero-desc fade-in delay-1" style="max-width: 560px; margin: 28px 0 0;">
-    부가새는 농가의 부산물 발생량을 AI로 예측하고, 이를 필요로 하는 기업과 연결하는
-    농업 부산물 거래 플랫폼입니다.
-  </p>
-
-  <div class="hero-actions fade-in delay-2">
-    <a href="{{ url_for('service') }}" class="btn-primary">서비스 시작하기 →</a>
-    <a href="{{ url_for('about') }}" class="btn-ghost">자세히 보기</a>
-  </div>
-
-  <div class="hero-bottom" style="margin-top: 64px;">
-    <div class="stat-block fade-in delay-2">
-      <div class="label">예측 대상 작물</div>
-      <div class="number">9<span class="unit">종</span></div>
+<section class="hero-main">
+  <div class="bg"></div>
+  <div class="inner">
+    <span class="hero-tag"><span class="dot"></span>농가와 기업을 잇는 부산물 거래 플랫폼</span>
+    <h1>버려지는 <span class="strike">부산물</span>이,<br>새로운 <span class="accent">자원</span>으로.</h1>
+    <p class="hero-desc">부가새는 농가의 부산물 발생량을 AI로 예측하고, 이를 필요로 하는 기업과 직접 연결합니다.</p>
+    <div class="hero-actions">
+      <a href="{{ url_for('service') }}" class="btn-primary">서비스 시작하기 →</a>
+      <a href="{{ url_for('about') }}" class="btn-ghost">자세히 보기</a>
     </div>
-    <div class="stat-block fade-in delay-3">
-      <div class="label">학습 데이터</div>
-      <div class="number">공공<span class="unit"> 데이터</span></div>
-    </div>
-    <div class="stat-block fade-in delay-3">
-      <div class="label">부산물 환산</div>
-      <div class="number">RPR<span class="unit"> 기반</span></div>
+    <div class="hero-stats">
+      <div class="stat"><div class="label">예측 대상 작물</div><div class="number">9<span class="unit">종</span></div></div>
+      <div class="stat"><div class="label">학습 데이터</div><div class="number">공공<span class="unit">데이터</span></div></div>
+      <div class="stat"><div class="label">부산물 환산</div><div class="number">RPR<span class="unit">기반</span></div></div>
     </div>
   </div>
 </section>

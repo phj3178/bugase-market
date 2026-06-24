@@ -96,14 +96,24 @@ def index():
     return render_template("home.html", mode=MODE, active="home")
 
 
+
+
+
+
 @app.route("/about")
 def about():
     return render_template("about.html", mode=MODE, active="about")
 
 
+
 @app.route("/service")
 def service():
     return render_template("service.html", mode=MODE, active="service")
+
+
+@app.route("/faq")
+def faq():
+    return render_template("faq.html", mode=MODE, active="faq")
 
 
 @app.route("/api/options")
