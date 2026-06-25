@@ -124,6 +124,9 @@ def get_account():
     return jsonify({"ok": True, "account": {
         "email": u.email, "name": u.name, "phone": u.phone or "",
         "region": u.region or "", "user_type": u.user_type,
+        "bank_name": u.bank_name or "", "bank_account": u.bank_account or "",
+        "account_holder": u.account_holder or "",
+        "is_admin": u.is_admin,
     }})
 
 
@@ -137,6 +140,13 @@ def update_profile():
     current_user.name = name
     current_user.phone = (data.get("phone") or "").strip()
     current_user.region = (data.get("region") or "").strip()
+    # 농가 정산 계좌 (기업 회원은 보내지 않으면 그대로 유지)
+    if "bank_name" in data:
+        current_user.bank_name = (data.get("bank_name") or "").strip() or None
+    if "bank_account" in data:
+        current_user.bank_account = (data.get("bank_account") or "").strip() or None
+    if "account_holder" in data:
+        current_user.account_holder = (data.get("account_holder") or "").strip() or None
     db.session.commit()
     return jsonify({"ok": True, "name": current_user.name})
 

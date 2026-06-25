@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}관리자 정산 — 부가새{% endblock %}
+
+{% block head %}
+<style>
+  .admin-wrap { max-width:1180px; margin:0 auto; padding:76px 24px 92px; }
+  .admin-head { margin-bottom:26px; }
+  .admin-head .section-tag { display:inline-block; font-size:12px; letter-spacing:.08em; color:var(--olive); border:1px solid var(--line-strong); border-radius:100px; padding:5px 14px; margin-bottom:14px; }
+  .admin-head h1 { font-family:'Fraunces',serif; font-size:clamp(28px,4vw,42px); font-weight:500; margin:0; }
+  .admin-head p { color:var(--olive-soft); font-size:14px; line-height:1.7; margin-top:10px; }
+  .admin-filters { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:22px 0; }
+  .admin-filters select, .admin-filters button { padding:9px 13px; border:1px solid var(--line-strong); border-radius:6px; background:#fff; font-family:inherit; font-size:14px; color:var(--ink); }
+  .admin-filters button { background:var(--ink); color:var(--bg); cursor:pointer; }
+  .admin-panel { background:var(--paper,#FBFAF5); border:1px solid var(--line); border-radius:12px; padding:20px 22px; }
+  .admin-table { width:100%; border-collapse:collapse; font-size:13px; }
+  .admin-table th { text-align:left; padding:10px 10px; border-bottom:2px solid var(--olive); color:var(--olive); white-space:nowrap; }
+  .admin-table td { padding:12px 10px; border-bottom:1px solid var(--line); vertical-align:top; line-height:1.55; }
+  .money { font-weight:700; color:var(--olive); white-space:nowrap; }
+  .muted { color:var(--olive-soft); font-size:12px; }
+  .badge { display:inline-block; font-size:11px; padding:3px 8px; border-radius:100px; font-weight:700; }
+  .badge.accepted { background:#B5872018; color:#8a6310; }
+  .badge.paid { background:#4A532018; color:var(--olive); }
+  .badge.settled { background:#1C1A1418; color:var(--ink); }
+  .admin-btn { padding:8px 12px; border:none; border-radius:6px; background:var(--olive); color:#fff; font-family:inherit; font-size:12px; font-weight:700; cursor:pointer; white-space:nowrap; }
+  .admin-btn:disabled { opacity:.45; cursor:not-allowed; }
+  .empty { text-align:center; color:var(--olive-soft); padding:34px 0; }
+  @media(max-width:900px){ .table-scroll{overflow:auto;} .admin-table{min-width:900px;} }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="admin-wrap">
+  <div class="admin-head">
+    <span class="section-tag">ADMIN · ESCROW DEMO</span>
+    <h1>입금 확인 및 농가 정산</h1>
+    <p>기업이 “입금했습니다”로 표시한 거래를 확인하고, 수수료를 제외한 금액을 농가 정산 완료 상태로 처리하는 데모 화면입니다. 실제 송금·PG 연동은 포함되어 있지 않습니다.</p>
+  </div>
+
+  <div class="admin-filters">
+    <label for="status-filter" class="muted">거래 상태</label>
+    <select id="status-filter">
+      <option value="paid" selected>입금확인 대기중</option>
+      <option value="accepted">기업 입금 대기중</option>
+      <option value="settled">정산완료</option>
+      <option value="all">전체 진행 거래</option>
+    </select>
+    <button onclick="loadTransactions()">새로고침</button>
+  </div>
+
+  <div class="admin-panel">
+    <div class="table-scroll">
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th>상태</th><th>매물</th><th>기업</th><th>제안가</th><th>수수료</th><th>농가 정산액</th><th>농가 계좌</th><th>처리</th>
+          </tr>
+        </thead>
+        <tbody id="tx-body"><tr><td colspan="8" class="empty">불러오는 중…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const won = (n) => Number(n || 0).toLocaleString("ko-KR");
+const statusLabel = {accepted:"기업 입금 대기중", paid:"입금확인 대기중", settled:"정산완료", rejected:"거절됨", pending:"대기중"};
+
+async function loadTransactions(){
+  const status = document.getElementById("status-filter").value;
+  const body = document.getElementById("tx-body");
+  body.innerHTML = `<tr><td colspan="8" class="empty">불러오는 중…</td></tr>`;
+  const r = await (await fetch(`/api/admin/transactions?status=${encodeURIComponent(status)}`)).json();
+  if (!r.ok) { body.innerHTML = `<tr><td colspan="8" class="empty">${r.사유 || "불러오지 못했습니다."}</td></tr>`; return; }
+  if (!r.transactions || !r.transactions.length) { body.innerHTML = `<tr><td colspan="8" class="empty">표시할 거래가 없습니다.</td></tr>`; return; }
+  body.innerHTML = "";
+  r.transactions.forEach(t => {
+    const L = t.listing || {}, seller = t.seller || {}, buyer = t.buyer || {};
+    const account = seller.bank_name || seller.bank_account || seller.account_holder
+      ? `${seller.bank_name || "-"}<br>${seller.bank_account || "-"}<br><span class="muted">예금주 ${seller.account_holder || "-"}</span>`
+      : `<span class="muted">계좌 미등록</span>`;
+    const action = t.status === "paid"
+      ? `<button class="admin-btn" onclick="settle(${t.id})">입금 확인 & 정산</button>`
+      : `<span class="muted">처리 불가</span>`;
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td><span class="badge ${t.status}">${statusLabel[t.status] || t.status}</span><br><span class="muted">${t.paid_at || t.created_at || ""}</span></td>
+      <td><b>${L.crop || ""} · ${L.byproduct || ""}</b><br><span class="muted">${won(L.amount_ton)}톤 · ${L.farm_location || L.do || ""}</span></td>
+      <td>${buyer.name || "-"}<br><span class="muted">${buyer.phone || buyer.email || ""}</span></td>
+      <td class="money">₩${won(t.offer_price)}</td>
+      <td>₩${won(t.fee)}<br><span class="muted">중량형 차등</span></td>
+      <td class="money">₩${won(t.settle_amount)}</td>
+      <td>${seller.name || "-"}<br>${account}</td>
+      <td>${action}</td>`;
+    body.appendChild(tr);
+  });
+}
+
+async function settle(id){
+  if (!confirm("입금을 확인하고 농가 정산 완료로 처리할까요?\n실제 송금은 별도로 처리해야 하는 데모 기능입니다.")) return;
+  const r = await (await fetch(`/api/admin/requests/${id}/settle`, {method:"POST"})).json();
+  if (r.ok) { alert("정산 완료로 처리했습니다."); loadTransactions(); }
+  else alert(r.사유 || "처리에 실패했습니다.");
+}
+
+document.getElementById("status-filter").addEventListener("change", loadTransactions);
+loadTransactions();
+</script>
+{% endblock %}

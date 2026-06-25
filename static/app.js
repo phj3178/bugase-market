@@ -317,17 +317,21 @@ async function searchMarket() {
       ? `<button class="mk-btn map" onclick="openMap('${encodeURIComponent(L.farm_location)}')">지도에서 보기</button>` : "";
     let actions;
     if (L.my_request_status) {
-      const label = {pending:"신청함 (대기중)",accepted:"수락됨",rejected:"거절됨"}[L.my_request_status] || L.my_request_status;
+      const label = {pending:"신청함 (대기중)",accepted:"수락됨/입금대기",paid:"입금확인 대기중",settled:"정산완료",rejected:"거절됨"}[L.my_request_status] || L.my_request_status;
       actions = `<div class="mk-actions">${mapBtn}<span class="mk-badge ${L.my_request_status}">${label}</span></div>`;
     } else {
-      actions = `<input class="mk-msg" id="mk-msg-${L.id}" placeholder="농가에 남길 메시지 (예: 전량 구매 희망)" />
+      actions = `<input class="mk-msg" id="mk-offer-${L.id}" type="number" min="1" placeholder="제안 가격 (원, 총액)" />
+        <input class="mk-msg" id="mk-msg-${L.id}" placeholder="농가에 남길 메시지 (예: 전량 구매 희망)" />
         <div class="mk-actions">${mapBtn}<button class="mk-btn" onclick="sendMarketRequest(${L.id})">구매 신청</button></div>`;
     }
+    const noteHtml = L.note
+      ? `<div class="mk-note">📝 ${L.note}</div>` : "";
     card.innerHTML = `
       <div class="row1"><span class="crop">${L.crop} · ${L.byproduct}</span>
         <span class="amt">${won(L.amount_ton)}톤</span></div>
       <div class="meta">${L.farm_location || L.do} · 수확 ${L.harvest_date || "미정"}
         ${L.price_won ? " · 희망가 ₩" + won(L.price_won) : " · 가격 협의"} · 판매자 ${L.seller_name}</div>
+      ${noteHtml}
       ${actions}`;
     box.appendChild(card);
   });
@@ -340,11 +344,13 @@ function openMap(encodedAddr) {
 
 async function sendMarketRequest(id) {
   const msg = document.getElementById("mk-msg-" + id).value;
+  const offer = document.getElementById("mk-offer-" + id).value;
+  if (!offer || Number(offer) <= 0) { alert("제안 가격(원)을 입력하세요."); return; }
   const r = await (await fetch(`/api/listings/${id}/request`, {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message: msg }),
+    body: JSON.stringify({ message: msg, offer_price: offer }),
   })).json();
-  if (r.ok) { alert("구매 신청을 보냈습니다. 농가가 수락하면 연락처가 공개됩니다."); searchMarket(); }
+  if (r.ok) { alert("구매 신청을 보냈습니다. 농가가 수락하면 가상계좌가 발급됩니다."); searchMarket(); }
   else alert("신청 실패: " + (r.사유 || "오류"));
 }
 

@@ -26,6 +26,10 @@ class User(UserMixin, db.Model):
     name = db.Column(db.String(80), nullable=False)         # 이름 또는 상호명
     phone = db.Column(db.String(30))                        # 연락처
     region = db.Column(db.String(80))                       # 기본 지역(선택)
+    # 농가 정산 계좌 (에스크로 정산용)
+    bank_name = db.Column(db.String(40))                    # 은행명
+    bank_account = db.Column(db.String(40))                 # 계좌번호
+    account_holder = db.Column(db.String(40))               # 예금주명
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # 관계: 농부가 등록한 매물 / 기업이 넣은 구매신청
@@ -48,6 +52,11 @@ class User(UserMixin, db.Model):
     @property
     def is_company(self):
         return self.user_type == "company"
+
+    @property
+    def is_admin(self):
+        import config
+        return config.is_admin_email(self.email)
 
 
 class Listing(db.Model):
@@ -104,8 +113,15 @@ class PurchaseRequest(db.Model):
     company_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
 
     message = db.Column(db.String(500))                    # 기업이 남기는 메시지
-    status = db.Column(db.String(12), default="pending")   # pending|accepted|rejected
+    status = db.Column(db.String(12), default="pending")   # pending|accepted|paid|settled|rejected
     reject_reason = db.Column(db.String(500))              # 농가가 거절 시 남기는 사유
+    # 에스크로 거래 정보
+    offer_price = db.Column(db.Integer)                    # 기업 제안가(원, 총액)
+    virtual_account = db.Column(db.String(60))             # 발급된 가상계좌(부가새 에스크로)
+    fee = db.Column(db.Integer)                            # 수수료(원)
+    settle_amount = db.Column(db.Integer)                  # 농가 정산액(원, 제안가-수수료)
+    paid_at = db.Column(db.DateTime)                       # 기업 입금 표시 시각
+    settled_at = db.Column(db.DateTime)                    # 관리자 정산 완료 시각
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def to_dict(self):
@@ -113,9 +129,16 @@ class PurchaseRequest(db.Model):
             "id": self.id,
             "listing_id": self.listing_id,
             "company_name": self.buyer.name if self.buyer else None,
-            "company_phone": self.buyer.phone if self.buyer else None,
+            # 직거래 방지를 위해 일반 API 직렬화에서는 기업 연락처를 공개하지 않는다.
+            "company_phone": None,
             "message": self.message,
             "status": self.status,
             "reject_reason": self.reject_reason,
+            "offer_price": self.offer_price,
+            "virtual_account": self.virtual_account,
+            "fee": self.fee,
+            "settle_amount": self.settle_amount,
+            "paid_at": self.paid_at.strftime("%Y-%m-%d %H:%M") if self.paid_at else None,
+            "settled_at": self.settled_at.strftime("%Y-%m-%d %H:%M") if self.settled_at else None,
             "created_at": self.created_at.strftime("%Y-%m-%d %H:%M") if self.created_at else None,
         }

@@ -9,7 +9,7 @@
     -> http://127.0.0.1:5000
 """
 import os
-from flask import Flask, render_template, request, jsonify, redirect, url_for
+from flask import Flask, render_template, request, jsonify, redirect, url_for, abort
 
 import model
 import config
@@ -54,6 +54,33 @@ with app.app_context():
             with db.engine.begin() as conn:
                 conn.execute(text("ALTER TABLE purchase_requests ADD COLUMN reject_reason VARCHAR(500)"))
             print("[부가새] purchase_requests.reject_reason 컬럼 추가됨")
+
+        # --- 에스크로(안심결제) 관련 신규 컬럼 ---
+        ucols = [c["name"] for c in inspect(db.engine).get_columns("users")]
+        user_new = {
+            "bank_name": "VARCHAR(40)",
+            "bank_account": "VARCHAR(40)",
+            "account_holder": "VARCHAR(40)",
+        }
+        for col, typ in user_new.items():
+            if col not in ucols:
+                with db.engine.begin() as conn:
+                    conn.execute(text(f"ALTER TABLE users ADD COLUMN {col} {typ}"))
+                print(f"[부가새] users.{col} 컬럼 추가됨")
+
+        pr_new = {
+            "offer_price": "INTEGER",
+            "virtual_account": "VARCHAR(60)",
+            "fee": "INTEGER",
+            "settle_amount": "INTEGER",
+            "paid_at": "TIMESTAMP",
+            "settled_at": "TIMESTAMP",
+        }
+        for col, typ in pr_new.items():
+            if col not in pcols:
+                with db.engine.begin() as conn:
+                    conn.execute(text(f"ALTER TABLE purchase_requests ADD COLUMN {col} {typ}"))
+                print(f"[부가새] purchase_requests.{col} 컬럼 추가됨")
     except Exception as e:
         print("[부가새] 스키마 점검 건너뜀:", e)
 
@@ -127,7 +154,7 @@ def api_me():
     from flask_login import current_user
     if current_user.is_authenticated:
         return jsonify({"authenticated": True, "user_type": current_user.user_type,
-                        "name": current_user.name})
+                        "name": current_user.name, "is_admin": current_user.is_admin})
     return jsonify({"authenticated": False})
 
 
@@ -137,6 +164,29 @@ def mypage():
     if not current_user.is_authenticated:
         return redirect(url_for("auth.login", next="/mypage"))
     return render_template("mypage.html", mode=MODE, active="mypage")
+
+
+@app.route("/dashboard")
+def dashboard():
+    """기업용 원료 수급 예측 대시보드 (로그인 회원 전용)."""
+    from flask_login import current_user
+    if not current_user.is_authenticated:
+        return redirect(url_for("auth.login", next="/dashboard"))
+    return render_template("dashboard.html", mode=MODE, active="dashboard",
+                           kakao_key=config.KAKAO_JS_KEY)
+
+
+
+
+@app.route("/admin")
+def admin():
+    """부가새 운영자 정산 관리 화면."""
+    from flask_login import current_user
+    if not current_user.is_authenticated:
+        return redirect(url_for("auth.login", next="/admin"))
+    if not current_user.is_admin:
+        abort(403)
+    return render_template("admin.html", mode=MODE, active="admin")
 
 
 @app.route("/api/predict", methods=["POST"])

@@ -17,6 +17,13 @@ ASOS_SERVICE_KEY = os.environ.get(
     "8fc2bfa0688fb452667c4c69f7d478aaf0dabe1f41a16d06ea453dc39a193a7e",
 )
 
+# 카카오 지도 JavaScript 키 (developers.kakao.com → 내 앱 → JavaScript 키).
+# 보안을 위해 환경변수 KAKAO_JS_KEY 로 주입하는 것을 권장합니다.
+#   (mac/linux)  export KAKAO_JS_KEY="발급받은_JavaScript_키"
+#   (windows)    set KAKAO_JS_KEY=발급받은_JavaScript_키
+# 로컬에서 빠르게 테스트하려면 아래 따옴표 안에 키를 직접 붙여넣어도 됩니다.
+KAKAO_JS_KEY = os.environ.get("KAKAO_JS_KEY", "b146800051ab794e054f1ec9695ed9aa")
+
 # 부산물별 기준 단가 (원/kg). AI가 아니라 팀이 정하는 추정 시세.
 BYPRODUCT_PRICE = {
     "볏짚": 130,
@@ -49,3 +56,38 @@ def price_of(byproduct):
 
 def disposal_of(byproduct):
     return BYPRODUCT_DISPOSAL.get(byproduct, DEFAULT_DISPOSAL)
+
+
+# =========================================================
+# 에스크로(안심결제) 데모 설정
+# =========================================================
+
+# 관리자(부가새 운영) 계정 이메일. 이 계정으로 로그인하면 정산 관리 화면(/admin)이 보인다.
+# 환경변수 ADMIN_EMAILS 로 콤마 구분해 여러 개 지정 가능.
+ADMIN_EMAILS = [
+    e.strip().lower() for e in
+    os.environ.get("ADMIN_EMAILS", "bugase2026@gmail.com").split(",")
+    if e.strip()
+]
+
+
+def is_admin_email(email):
+    return (email or "").strip().lower() in ADMIN_EMAILS
+
+
+# 중량형 차등 수수료 구간 (데모). (상한_톤, 수수료율) — 톤이 상한 이하이면 해당 율 적용.
+# 예: 1톤 이하 8%, 5톤 이하 6%, 그 이상 4%.
+FEE_TIERS = [
+    (1.0, 0.08),
+    (5.0, 0.06),
+    (float("inf"), 0.04),
+]
+
+
+def fee_rate_for(amount_ton):
+    """중량(톤)에 따른 수수료율 반환."""
+    t = float(amount_ton or 0)
+    for limit, rate in FEE_TIERS:
+        if t <= limit:
+            return rate
+    return FEE_TIERS[-1][1]
