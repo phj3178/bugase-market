@@ -46,6 +46,7 @@
   .card .meta { font-size: 13px; color: var(--olive-soft,#8a8a6a); margin-top: 6px; line-height: 1.6; }
   .badge { font-size: 11px; padding: 3px 9px; border-radius: 100px; font-weight: 600; }
   .badge.selling { background: #4A532018; color: var(--olive,#4A5320); }
+  .badge.trading { background: #B5872018; color: #8a6310; }
   .badge.done { background: #88888818; color: #777; }
   .badge.pending { background: #B5872018; color: #9a6f1a; }
   .badge.accepted { background: #4A532018; color: var(--olive,#4A5320); }
@@ -286,7 +287,7 @@ async function renderFarmer() {
                  <div class="section"><h2>내 등록 매물</h2><div id="mylist"></div></div>`;
   const rq = await (await fetch("/api/received-requests")).json();
   const rbox = document.getElementById("received");
-  const statusLabel = {pending:"대기중",accepted:"수락됨/기업 입금 대기",paid:"입금확인 대기중",settled:"정산완료",rejected:"거절됨"};
+  const statusLabel = {pending:"대기중",accepted:"거래 중",paid:"입금 확인 대기",settled:"거래 완료",rejected:"거절됨"};
   if (!rq.requests || !rq.requests.length) rbox.innerHTML = `<div class="empty">아직 들어온 구매 신청이 없습니다.</div>`;
   else { rbox.innerHTML=""; rq.requests.forEach(r => {
     const L = r.listing || {};
@@ -297,11 +298,11 @@ async function renderFarmer() {
     // 직거래 방지를 위해 수락 이후에도 기업 연락처는 표시하지 않습니다.
     const contact = "";
     const deal = r.status === "accepted"
-      ? `<div class="deal-box warn">기업 입금 대기중<br>제안가 ₩${won(r.offer_price)} · 수수료 ₩${won(r.fee)} · 예상 정산액 <b>₩${won(r.settle_amount)}</b><br>가상계좌는 기업 회원에게만 안내됩니다.</div>`
+      ? `<div class="deal-box warn">거래 중 · 기업 입금 대기<br>제안가 ₩${won(r.offer_price)} · 수수료 ₩${won(r.fee)} · 예상 정산액 <b>₩${won(r.settle_amount)}</b><br>가상계좌는 기업 회원에게만 안내됩니다.</div>`
       : r.status === "paid"
-        ? `<div class="deal-box warn">기업이 입금했다고 표시했습니다. 관리자 입금 확인 후 정산됩니다.<br>제안가 ₩${won(r.offer_price)} · 수수료 ₩${won(r.fee)} · 정산예정액 <b>₩${won(r.settle_amount)}</b></div>`
+        ? `<div class="deal-box warn">입금 확인 대기 · 관리자가 입금을 확인하면 거래 완료로 전환됩니다.<br>제안가 ₩${won(r.offer_price)} · 수수료 ₩${won(r.fee)} · 정산예정액 <b>₩${won(r.settle_amount)}</b></div>`
         : r.status === "settled"
-          ? `<div class="deal-box done">정산완료 · 정산액 <b>₩${won(r.settle_amount)}</b>${r.settled_at ? " · "+r.settled_at : ""}</div>`
+          ? `<div class="deal-box done">거래 완료 · 정산액 <b>₩${won(r.settle_amount)}</b>${r.settled_at ? " · "+r.settled_at : ""}</div>`
           : r.status === "rejected" && r.reject_reason
             ? `<div class="deal-box" style="background:#9B4A1F12;border-color:#9B4A1F;color:#9B4A1F;">거절 사유: ${r.reject_reason}</div>`
             : "";
@@ -327,16 +328,13 @@ async function renderFarmer() {
       <div class="meta">${L.farm_location||L.do} · 수확 ${L.harvest_date||"미정"}
       ${L.price_won? " · 희망 ₩"+won(L.price_won):" · 가격 협의"} · 신청 ${L.request_count}건</div>
       ${L.note? `<div class="meta">📝 ${L.note}</div>`:""}
-      <div class="req-line"><span class="badge ${L.status}">${L.status==='selling'?'판매중':'거래완료'}</span>
+      <div class="req-line"><span class="badge ${L.status}">${{selling:'판매중',trading:'거래중',done:'거래완료'}[L.status] || L.status}</span>
       <span style="display:flex; gap:8px;">${editBtn}
       <button class="btn btn-line" onclick="delListing(${L.id})">삭제</button></span></div>`;
     mbox.appendChild(card); }); }
 }
 async function decide(id, decision) {
   let reason = "";
-  if (decision === "accepted") {
-    if (!confirm("이 구매 신청을 수락하고 부가새 에스크로 결제 절차를 시작할까요?\n수락하면 해당 매물은 거래완료 상태가 됩니다.")) return;
-  }
   if (decision === "rejected") {
     reason = prompt("거절 사유를 입력하세요.\n입력하신 사유는 신청한 기업에게 표시됩니다.", "");
     if (reason === null) return;  // 취소
@@ -403,10 +401,10 @@ async function searchListings() {
   box.innerHTML=""; r.listings.forEach(L => {
     const card=document.createElement("div"); card.className="card";
     const mapBtn = L.farm_location
-      ? `<button class="btn btn-line" onclick="window.open('https://map.kakao.com/?q='+encodeURIComponent('${L.farm_location}'),'_blank')">지도에서 보기</button>` : "";
+      ? `<button class="btn btn-line" onclick="location.href='/dashboard?listing_id=${L.id}'">부산물 지도에서 보기</button>` : "";
     let actionArea;
     if (L.my_request_status) {
-      const label={pending:"신청함 (대기중)",accepted:"수락됨/입금대기",paid:"입금확인 대기중",settled:"정산완료",rejected:"거절됨"}[L.my_request_status]||L.my_request_status;
+      const label={pending:"신청함 (대기중)",accepted:"거래 중",paid:"입금 확인 대기",settled:"거래 완료",rejected:"거절됨"}[L.my_request_status]||L.my_request_status;
       actionArea = `<div class="req-line"><span></span><span>${mapBtn} <span class="badge ${L.my_request_status}">${label}</span></span></div>`;
     } else {
       actionArea = `<input class="msg-input" id="offer-${L.id}" type="number" min="1" placeholder="제안 가격 (원, 총액)" />
@@ -444,27 +442,27 @@ async function loadMyRequests() {
       ? `<div class="contact" style="background:#9B4A1F12;border-color:#9B4A1F;color:#9B4A1F;">
          거절 사유: ${req.reject_reason}</div>` : "";
     const mapBtn = L.farm_location
-      ? `<button class="btn btn-line" onclick="window.open('https://map.kakao.com/?q='+encodeURIComponent('${L.farm_location}'),'_blank')">지도에서 보기</button>` : "";
+      ? `<button class="btn btn-line" onclick="location.href='/dashboard?listing_id=${L.id}'">부산물 지도에서 보기</button>` : "";
     const canDelete = (req.status === "rejected" || L.status === "deleted" || req.status === "pending");
     const delBtn = canDelete
       ? `<button class="btn btn-line" onclick="delRequest(${req.id})">신청 내역 삭제</button>` : "";
 
     let escrow = "";
     if (req.status === "accepted") {
-      escrow = `<div class="deal-box warn">농가가 신청을 수락했습니다. 아래 가상계좌로 입금 후 버튼을 눌러주세요.<br>
+      escrow = `<div class="deal-box warn">거래 중입니다. 아래 가상계좌로 입금 후 버튼을 눌러주세요.<br>
         가상계좌: <b>${req.virtual_account || "발급 대기"}</b><br>
         입금액: <b>₩${won(req.offer_price)}</b> · 수수료 ₩${won(req.fee)} · 농가 정산예정액 ₩${won(req.settle_amount)}
         <div style="margin-top:8px;"><button class="btn btn-olive" onclick="payRequest(${req.id})">입금했습니다</button></div></div>`;
     } else if (req.status === "paid") {
-      escrow = `<div class="deal-box warn">입금 표시 완료. 부가새 관리자의 입금 확인 및 정산 처리를 기다리는 중입니다.<br>
+      escrow = `<div class="deal-box warn">입금 확인 대기 상태입니다. 부가새 관리자가 입금을 확인하면 거래 완료로 전환됩니다.<br>
         입금액 ₩${won(req.offer_price)}${req.paid_at ? " · "+req.paid_at : ""}</div>`;
     } else if (req.status === "settled") {
-      escrow = `<div class="deal-box done">정산완료 거래입니다. ${req.settled_at || ""}</div>`;
+      escrow = `<div class="deal-box done">거래 완료 상태입니다. ${req.settled_at || ""}</div>`;
     }
 
     const actions = (mapBtn || delBtn)
       ? `<div class="req-line"><span></span><span style="display:flex;gap:8px;">${mapBtn}${delBtn}</span></div>` : "";
-    const label={pending:"대기중",accepted:"수락됨/입금대기",paid:"입금확인 대기중",settled:"정산완료",rejected:"거절됨"}[req.status]||req.status;
+    const label={pending:"대기중",accepted:"거래 중",paid:"입금 확인 대기",settled:"거래 완료",rejected:"거절됨"}[req.status]||req.status;
     const card=document.createElement("div"); card.className="card";
     card.innerHTML = `<div class="row1"><span class="crop">${L.crop||""} · ${L.byproduct||""}</span>
       <span class="badge ${req.status}">${label}</span></div>
@@ -476,7 +474,7 @@ async function loadMyRequests() {
 async function payRequest(id) {
   if (!confirm("입금했다고 표시할까요?\n실제 송금 연동이 아닌 데모용 상태 변경입니다.")) return;
   const r = await (await fetch(`/api/requests/${id}/pay`, {method:"POST"})).json();
-  if (r.ok) { alert("입금 표시가 완료되었습니다. 관리자가 확인 후 정산 처리합니다."); loadMyRequests(); }
+  if (r.ok) { alert("입금 표시가 완료되었습니다. 관리자가 확인하면 거래 완료로 전환됩니다."); loadMyRequests(); }
   else alert(r.사유 || "처리에 실패했습니다.");
 }
 

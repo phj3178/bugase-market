@@ -33,6 +33,9 @@ let MAP_ON = false;       // 카카오 SDK 정상 로드 여부
 let map, geocoder, infowindow;
 let overlays = [];
 let cropChart = null, monthChart = null;
+const QUERY = new URLSearchParams(window.location.search);
+const FOCUS_ID = QUERY.get("listing_id");
+
 
 function colorFor(crop, idx) {
   return CROP_COLORS[crop] || FALLBACK_COLORS[idx % FALLBACK_COLORS.length];
@@ -45,6 +48,17 @@ function doCoords(doName) {
   }
   return null;
 }
+
+function escapeHtml(v) {
+  return String(v == null ? "" : v)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+function kakaoMapUrl(addr) {
+  return "https://map.kakao.com/?q=" + encodeURIComponent(addr || "");
+}
+
 
 // ---------- 진입 ----------
 async function initDashboard() {
@@ -230,15 +244,32 @@ function placeDot(pt, latlng, color) {
   ov.setMap(map);
   overlays.push(ov);
 
-  el.addEventListener("click", () => {
+  function openInfo() {
     const region = pt.farm_location || [pt.do, pt.sigun].filter(Boolean).join(" ") || "";
+    const mapLink = region
+      ? `<a class="iw-map-btn" href="${kakaoMapUrl(region)}" target="_blank" rel="noopener">카카오맵으로 확인하기</a>`
+      : "";
     infowindow.setContent(
-      `<div class="iw"><b>${pt.crop} · ${pt.byproduct}</b><br>` +
-      `${won(pt.amount_ton)}톤<br>${region}<br>` +
-      `수확 ${pt.harvest_date || "미정"}<br>판매자 ${pt.seller_name || "-"}</div>`);
+      `<div class="iw">` +
+      `<b>${escapeHtml(pt.crop)} · ${escapeHtml(pt.byproduct)}</b>` +
+      `<span class="iw-line">${won(pt.amount_ton)}톤</span>` +
+      `<span class="iw-line">${escapeHtml(region)}</span>` +
+      `<span class="iw-line">수확 ${escapeHtml(pt.harvest_date || "미정")}</span>` +
+      `<span class="iw-line">판매자 ${escapeHtml(pt.seller_name || "-")}</span>` +
+      `${mapLink}</div>`);
     infowindow.setPosition(latlng);
     infowindow.open(map);
-  });
+  }
+
+  el.addEventListener("click", openInfo);
+
+  if (FOCUS_ID && String(pt.id) === String(FOCUS_ID)) {
+    setTimeout(() => {
+      map.setLevel(8);
+      map.panTo(latlng);
+      openInfo();
+    }, 120);
+  }
 }
 
 function fallbackPlace(pt, color) {

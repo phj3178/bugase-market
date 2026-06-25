@@ -314,10 +314,10 @@ async function searchMarket() {
     const card = document.createElement("div");
     card.className = "mk-card";
     const mapBtn = L.farm_location
-      ? `<button class="mk-btn map" onclick="openMap('${encodeURIComponent(L.farm_location)}')">지도에서 보기</button>` : "";
+      ? `<button class="mk-btn map" onclick="goDashboard(${L.id})">부산물 지도에서 보기</button>` : "";
     let actions;
     if (L.my_request_status) {
-      const label = {pending:"신청함 (대기중)",accepted:"수락됨/입금대기",paid:"입금확인 대기중",settled:"정산완료",rejected:"거절됨"}[L.my_request_status] || L.my_request_status;
+      const label = {pending:"신청함 (대기중)",accepted:"거래 중",paid:"입금 확인 대기",settled:"거래 완료",rejected:"거절됨"}[L.my_request_status] || L.my_request_status;
       actions = `<div class="mk-actions">${mapBtn}<span class="mk-badge ${L.my_request_status}">${label}</span></div>`;
     } else {
       actions = `<input class="mk-msg" id="mk-offer-${L.id}" type="number" min="1" placeholder="제안 가격 (원, 총액)" />
@@ -337,9 +337,14 @@ async function searchMarket() {
   });
 }
 
+function goDashboard(listingId) {
+  // 서비스 밖의 새 카카오맵 창으로 바로 보내지 않고, 부가새의 부산물 지도에서 먼저 확인한다.
+  location.href = "/dashboard?listing_id=" + encodeURIComponent(listingId);
+}
+
 function openMap(encodedAddr) {
-  // 카카오맵에서 주소 검색 (새 탭)
-  window.open("https://map.kakao.com/?q=" + encodedAddr, "_blank");
+  // 이전 버전 호환용: 직접 카카오맵을 여는 대신 부가새 부산물 지도로 이동한다.
+  location.href = "/dashboard";
 }
 
 async function sendMarketRequest(id) {

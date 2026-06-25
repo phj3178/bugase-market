@@ -41,7 +41,7 @@
     <select id="status-filter">
       <option value="paid" selected>입금확인 대기중</option>
       <option value="accepted">기업 입금 대기중</option>
-      <option value="settled">정산완료</option>
+      <option value="settled">거래 완료</option>
       <option value="all">전체 진행 거래</option>
     </select>
     <button onclick="loadTransactions()">새로고침</button>
@@ -65,7 +65,7 @@
 {% block scripts %}
 <script>
 const won = (n) => Number(n || 0).toLocaleString("ko-KR");
-const statusLabel = {accepted:"기업 입금 대기중", paid:"입금확인 대기중", settled:"정산완료", rejected:"거절됨", pending:"대기중"};
+const statusLabel = {accepted:"거래 중", paid:"입금 확인 대기", settled:"거래 완료", rejected:"거절됨", pending:"대기중"};
 
 async function loadTransactions(){
   const status = document.getElementById("status-filter").value;
@@ -81,7 +81,7 @@ async function loadTransactions(){
       ? `${seller.bank_name || "-"}<br>${seller.bank_account || "-"}<br><span class="muted">예금주 ${seller.account_holder || "-"}</span>`
       : `<span class="muted">계좌 미등록</span>`;
     const action = t.status === "paid"
-      ? `<button class="admin-btn" onclick="settle(${t.id})">입금 확인 & 정산</button>`
+      ? `<button class="admin-btn" onclick="settle(${t.id})">입금 확인 & 거래 완료</button>`
       : `<span class="muted">처리 불가</span>`;
     const tr = document.createElement("tr");
     tr.innerHTML = `
