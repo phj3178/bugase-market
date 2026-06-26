@@ -298,9 +298,9 @@ async function renderFarmer() {
     // 직거래 방지를 위해 수락 이후에도 기업 연락처는 표시하지 않습니다.
     const contact = "";
     const deal = r.status === "accepted"
-      ? `<div class="deal-box warn">거래 중 · 기업 입금 대기<br>제안가 ₩${won(r.offer_price)} · 수수료 ₩${won(r.fee)} · 예상 정산액 <b>₩${won(r.settle_amount)}</b><br>가상계좌는 기업 회원에게만 안내됩니다.</div>`
+      ? `<div class="deal-box warn">거래 중 · 기업 입금 대기<br>제안가 ₩${won(r.offer_price)} · 농가 수수료 ₩${won(r.farmer_fee)} · 예상 정산액 <b>₩${won(r.settle_amount)}</b><br><span style="font-size:12px;color:var(--olive-soft);">수수료 구간: ${r.fee_tier_label || "-"}</span><br>가상계좌는 기업 회원에게만 안내됩니다.</div>`
       : r.status === "paid"
-        ? `<div class="deal-box warn">입금 확인 대기 · 관리자가 입금을 확인하면 거래 완료로 전환됩니다.<br>제안가 ₩${won(r.offer_price)} · 수수료 ₩${won(r.fee)} · 정산예정액 <b>₩${won(r.settle_amount)}</b></div>`
+        ? `<div class="deal-box warn">입금 확인 대기 · 관리자가 입금을 확인하면 거래 완료로 전환됩니다.<br>제안가 ₩${won(r.offer_price)} · 농가 수수료 ₩${won(r.farmer_fee)} · 정산예정액 <b>₩${won(r.settle_amount)}</b></div>`
         : r.status === "settled"
           ? `<div class="deal-box done">거래 완료 · 정산액 <b>₩${won(r.settle_amount)}</b>${r.settled_at ? " · "+r.settled_at : ""}</div>`
           : r.status === "rejected" && r.reject_reason
@@ -451,11 +451,13 @@ async function loadMyRequests() {
     if (req.status === "accepted") {
       escrow = `<div class="deal-box warn">거래 중입니다. 아래 가상계좌로 입금 후 버튼을 눌러주세요.<br>
         가상계좌: <b>${req.virtual_account || "발급 대기"}</b><br>
-        입금액: <b>₩${won(req.offer_price)}</b> · 수수료 ₩${won(req.fee)} · 농가 정산예정액 ₩${won(req.settle_amount)}
+        제안가: ₩${won(req.offer_price)} · 기업 수수료 ₩${won(req.buyer_fee)}<br>
+        총 입금액: <b>₩${won(req.pay_amount)}</b><br>
+        <span style="font-size:12px;color:var(--olive-soft);">수수료 구간: ${req.fee_tier_label || "-"}</span>
         <div style="margin-top:8px;"><button class="btn btn-olive" onclick="payRequest(${req.id})">입금했습니다</button></div></div>`;
     } else if (req.status === "paid") {
       escrow = `<div class="deal-box warn">입금 확인 대기 상태입니다. 부가새 관리자가 입금을 확인하면 거래 완료로 전환됩니다.<br>
-        입금액 ₩${won(req.offer_price)}${req.paid_at ? " · "+req.paid_at : ""}</div>`;
+        총 입금액 ₩${won(req.pay_amount)}${req.paid_at ? " · "+req.paid_at : ""}</div>`;
     } else if (req.status === "settled") {
       escrow = `<div class="deal-box done">거래 완료 상태입니다. ${req.settled_at || ""}</div>`;
     }
@@ -467,7 +469,7 @@ async function loadMyRequests() {
     card.innerHTML = `<div class="row1"><span class="crop">${L.crop||""} · ${L.byproduct||""}</span>
       <span class="badge ${req.status}">${label}</span></div>
       <div class="meta">${L.farm_location||L.do||""} · ${won(L.amount_ton)}톤 · 판매자 ${L.seller_name||""}<br>
-      제안가: <b>₩${won(req.offer_price)}</b>${req.message ? " · 메시지: "+req.message : ""}</div>${escrow}${contact}${deleted}${rejected}${actions}`;
+      제안가: <b>₩${won(req.offer_price)}</b>${req.buyer_fee ? " · 기업 수수료 ₩"+won(req.buyer_fee) : ""}${req.pay_amount ? " · 총 입금액 ₩"+won(req.pay_amount) : ""}${req.message ? " · 메시지: "+req.message : ""}</div>${escrow}${contact}${deleted}${rejected}${actions}`;
     box.appendChild(card); });
 }
 

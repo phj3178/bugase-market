@@ -321,6 +321,7 @@ async function searchMarket() {
       actions = `<div class="mk-actions">${mapBtn}<span class="mk-badge ${L.my_request_status}">${label}</span></div>`;
     } else {
       actions = `<input class="mk-msg" id="mk-offer-${L.id}" type="number" min="1" placeholder="제안 가격 (원, 총액)" />
+        <div class="mk-note" style="margin-top:8px;">수락 시 거래 규모에 따라 구매 기업 수수료가 별도로 더해집니다.</div>
         <input class="mk-msg" id="mk-msg-${L.id}" placeholder="농가에 남길 메시지 (예: 전량 구매 희망)" />
         <div class="mk-actions">${mapBtn}<button class="mk-btn" onclick="sendMarketRequest(${L.id})">구매 신청</button></div>`;
     }

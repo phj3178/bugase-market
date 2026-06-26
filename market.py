@@ -381,9 +381,10 @@ def decide_request(req_id):
         if not pr.offer_price or pr.offer_price <= 0:
             return jsonify({"ok": False, "사유": "제안가가 없어 수락할 수 없습니다."}), 400
 
-        fee_rate = config.fee_rate_for(pr.listing.amount_ton)
-        pr.fee = round(pr.offer_price * fee_rate)
-        pr.settle_amount = max(0, pr.offer_price - pr.fee)
+        # 거래 규모별 수수료: 농민 부담분은 제안가에서 차감, 기업 부담분은 제안가에 더해 입금한다.
+        fee_info = config.fee_breakdown_for(pr.listing.amount_ton, pr.offer_price)
+        pr.fee = fee_info["total_fee"]
+        pr.settle_amount = fee_info["settle_amount"]
         pr.virtual_account = pr.virtual_account or _make_virtual_account()
         pr.status = "accepted"
         pr.reject_reason = None

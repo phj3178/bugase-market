@@ -34,7 +34,17 @@
     max-height:0; overflow:hidden; transition: max-height .25s ease, padding .25s ease;
     color:var(--olive-soft); font-size:14.5px; line-height:1.75; padding:0 24px 0 64px;
   }
-  .faq-item.open .faq-a { max-height: 400px; padding-bottom:20px; }
+  .faq-item.open .faq-a { max-height: 900px; padding-bottom:20px; }
+
+
+  .fee-intro { margin-bottom: 14px; }
+  .fee-table-wrap { overflow-x: auto; margin: 14px 0 12px; }
+  .fee-table { width: 100%; border-collapse: collapse; min-width: 520px; font-size: 13.5px; background: #fff; }
+  .fee-table th, .fee-table td { border: 1px solid var(--line,#E0DCCF); padding: 10px 12px; text-align: center; }
+  .fee-table th { background: var(--olive,#4A5320); color: #fff; font-weight: 600; }
+  .fee-table td:first-child { text-align: left; color: var(--ink,#1A1A17); font-weight: 500; }
+  .fee-note { font-size: 13px; color: var(--olive-soft,#8a8a6a); margin-top: 8px; }
+
 </style>
 {% endblock %}
 
@@ -58,7 +68,28 @@
 
   <div class="faq-item">
     <div class="faq-q"><span class="qmark">Q</span><span class="qtext">거래 수수료가 있나요?</span><span class="chev">⌄</span></div>
-    <div class="faq-a">네, 부가새는 안전하고 투명한 B2B 자원 거래 생태계를 위해 가상계좌 에스크로(안심결제) 시스템 기반의 '중량형 차등 수수료제'를 도입하여 운영하고 있습니다.</div>
+    <div class="faq-a">
+      <p class="fee-intro">네, 부가새는 안전하고 투명한 B2B 자원 거래 생태계를 위해 가상계좌 에스크로(안심결제) 시스템 기반의 <b>중량형 차등 수수료제</b>를 도입하여 운영하고 있습니다.</p>
+      <div class="fee-table-wrap">
+        <table class="fee-table">
+          <thead>
+            <tr>
+              <th>거래 물량</th>
+              <th>농민 수수료</th>
+              <th>구매 기업 수수료</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>0.5톤 미만</td><td>1.5%</td><td>4.5%</td></tr>
+            <tr><td>0.5톤 이상 ~ 2.5톤 미만</td><td>1.2%</td><td>3.6%</td></tr>
+            <tr><td>2.5톤 이상 ~ 5.5톤 미만</td><td>0.9%</td><td>2.7%</td></tr>
+            <tr><td>5.5톤 이상 ~ 27.5톤 미만</td><td>0.7%</td><td>2.1%</td></tr>
+            <tr><td>27.5톤 이상</td><td>0.5%</td><td>1.5%</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="fee-note">수수료는 거래 물량을 기준으로 자동 적용되며, 농민과 구매 기업의 부담 비율은 1 : 3으로 고정됩니다.</p>
+    </div>
   </div>
 
   <div class="faq-item">

@@ -125,6 +125,19 @@ class PurchaseRequest(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def to_dict(self):
+        amount_ton = self.listing.amount_ton if self.listing else 0
+        try:
+            import config
+            fee_info = config.fee_breakdown_for(amount_ton, self.offer_price or 0)
+        except Exception:
+            # config 로딩 실패 시에도 기본 응답은 깨지지 않게 한다.
+            fee_info = {
+                "farmer_rate": 0, "buyer_rate": 0, "total_rate": 0, "label": "",
+                "farmer_fee": 0, "buyer_fee": 0, "total_fee": self.fee or 0,
+                "pay_amount": self.offer_price or 0,
+                "settle_amount": self.settle_amount or self.offer_price or 0,
+            }
+
         return {
             "id": self.id,
             "listing_id": self.listing_id,
@@ -136,8 +149,16 @@ class PurchaseRequest(db.Model):
             "reject_reason": self.reject_reason,
             "offer_price": self.offer_price,
             "virtual_account": self.virtual_account,
-            "fee": self.fee,
-            "settle_amount": self.settle_amount,
+            # fee는 플랫폼 총 수수료(농민 부담분 + 기업 부담분)로 내려준다.
+            "fee": fee_info.get("total_fee", self.fee or 0),
+            "farmer_fee": fee_info.get("farmer_fee", 0),
+            "buyer_fee": fee_info.get("buyer_fee", 0),
+            "farmer_fee_rate": fee_info.get("farmer_rate", 0),
+            "buyer_fee_rate": fee_info.get("buyer_rate", 0),
+            "total_fee_rate": fee_info.get("total_rate", 0),
+            "fee_tier_label": fee_info.get("label", ""),
+            "pay_amount": fee_info.get("pay_amount", self.offer_price or 0),
+            "settle_amount": fee_info.get("settle_amount", self.settle_amount or 0),
             "paid_at": self.paid_at.strftime("%Y-%m-%d %H:%M") if self.paid_at else None,
             "settled_at": self.settled_at.strftime("%Y-%m-%d %H:%M") if self.settled_at else None,
             "created_at": self.created_at.strftime("%Y-%m-%d %H:%M") if self.created_at else None,

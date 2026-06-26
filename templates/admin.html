@@ -52,10 +52,10 @@
       <table class="admin-table">
         <thead>
           <tr>
-            <th>상태</th><th>매물</th><th>기업</th><th>제안가</th><th>수수료</th><th>농가 정산액</th><th>농가 계좌</th><th>처리</th>
+            <th>상태</th><th>매물</th><th>기업</th><th>제안가</th><th>기업 입금액</th><th>수수료</th><th>농가 정산액</th><th>농가 계좌</th><th>처리</th>
           </tr>
         </thead>
-        <tbody id="tx-body"><tr><td colspan="8" class="empty">불러오는 중…</td></tr></tbody>
+        <tbody id="tx-body"><tr><td colspan="9" class="empty">불러오는 중…</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -70,10 +70,10 @@ const statusLabel = {accepted:"거래 중", paid:"입금 확인 대기", settled
 async function loadTransactions(){
   const status = document.getElementById("status-filter").value;
   const body = document.getElementById("tx-body");
-  body.innerHTML = `<tr><td colspan="8" class="empty">불러오는 중…</td></tr>`;
+  body.innerHTML = `<tr><td colspan="9" class="empty">불러오는 중…</td></tr>`;
   const r = await (await fetch(`/api/admin/transactions?status=${encodeURIComponent(status)}`)).json();
-  if (!r.ok) { body.innerHTML = `<tr><td colspan="8" class="empty">${r.사유 || "불러오지 못했습니다."}</td></tr>`; return; }
-  if (!r.transactions || !r.transactions.length) { body.innerHTML = `<tr><td colspan="8" class="empty">표시할 거래가 없습니다.</td></tr>`; return; }
+  if (!r.ok) { body.innerHTML = `<tr><td colspan="9" class="empty">${r.사유 || "불러오지 못했습니다."}</td></tr>`; return; }
+  if (!r.transactions || !r.transactions.length) { body.innerHTML = `<tr><td colspan="9" class="empty">표시할 거래가 없습니다.</td></tr>`; return; }
   body.innerHTML = "";
   r.transactions.forEach(t => {
     const L = t.listing || {}, seller = t.seller || {}, buyer = t.buyer || {};
@@ -89,7 +89,8 @@ async function loadTransactions(){
       <td><b>${L.crop || ""} · ${L.byproduct || ""}</b><br><span class="muted">${won(L.amount_ton)}톤 · ${L.farm_location || L.do || ""}</span></td>
       <td>${buyer.name || "-"}<br><span class="muted">${buyer.phone || buyer.email || ""}</span></td>
       <td class="money">₩${won(t.offer_price)}</td>
-      <td>₩${won(t.fee)}<br><span class="muted">중량형 차등</span></td>
+      <td class="money">₩${won(t.pay_amount)}</td>
+      <td>총 ₩${won(t.fee)}<br><span class="muted">농가 ₩${won(t.farmer_fee)} / 기업 ₩${won(t.buyer_fee)}</span><br><span class="muted">${t.fee_tier_label || "중량형 차등"}</span></td>
       <td class="money">₩${won(t.settle_amount)}</td>
       <td>${seller.name || "-"}<br>${account}</td>
       <td>${action}</td>`;
