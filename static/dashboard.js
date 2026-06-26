@@ -59,6 +59,69 @@ function kakaoMapUrl(addr) {
   return "https://map.kakao.com/?q=" + encodeURIComponent(addr || "");
 }
 
+function makeInfoContent(pt, region) {
+  const box = document.createElement("div");
+  box.className = "iw";
+  box.style.boxSizing = "border-box";
+  box.style.width = "260px";
+  box.style.maxWidth = "260px";
+  box.style.padding = "12px 13px";
+  box.style.fontSize = "13px";
+  box.style.lineHeight = "1.55";
+  box.style.color = "#1A1A17";
+  box.style.whiteSpace = "normal";
+  box.style.overflowWrap = "break-word";
+  box.style.wordBreak = "keep-all";
+
+  const title = document.createElement("b");
+  title.textContent = `${pt.crop || "-"} · ${pt.byproduct || "-"}`;
+  title.style.display = "block";
+  title.style.fontFamily = "Fraunces, serif";
+  title.style.fontSize = "15px";
+  title.style.lineHeight = "1.35";
+  title.style.marginBottom = "6px";
+  box.appendChild(title);
+
+  const lines = [
+    `${won(pt.amount_ton)}톤`,
+    region || "-",
+    `수확 ${pt.harvest_date || "미정"}`,
+    `판매자 ${pt.seller_name || "-"}`,
+  ];
+  lines.forEach((text) => {
+    const line = document.createElement("div");
+    line.textContent = text;
+    line.style.display = "block";
+    line.style.marginTop = "4px";
+    box.appendChild(line);
+  });
+
+  if (region) {
+    const a = document.createElement("a");
+    a.href = kakaoMapUrl(region);
+    a.target = "_blank";
+    a.rel = "noopener";
+    a.textContent = "카카오맵으로 확인하기";
+    a.style.display = "block";
+    a.style.width = "100%";
+    a.style.boxSizing = "border-box";
+    a.style.marginTop = "12px";
+    a.style.padding = "8px 10px";
+    a.style.borderRadius = "6px";
+    a.style.background = "#C9892A";
+    a.style.color = "#1C1A14";
+    a.style.textAlign = "center";
+    a.style.textDecoration = "none";
+    a.style.fontSize = "12px";
+    a.style.fontWeight = "800";
+    a.style.lineHeight = "1.35";
+    a.style.border = "1px solid rgba(28,26,20,.16)";
+    box.appendChild(a);
+  }
+
+  return box;
+}
+
 
 // ---------- 진입 ----------
 async function initDashboard() {
@@ -246,17 +309,7 @@ function placeDot(pt, latlng, color) {
 
   function openInfo() {
     const region = pt.farm_location || [pt.do, pt.sigun].filter(Boolean).join(" ") || "";
-    const mapLink = region
-      ? `<a class="iw-map-btn" href="${kakaoMapUrl(region)}" target="_blank" rel="noopener">카카오맵으로 확인하기</a>`
-      : "";
-    infowindow.setContent(
-      `<div class="iw">` +
-      `<b>${escapeHtml(pt.crop)} · ${escapeHtml(pt.byproduct)}</b>` +
-      `<span class="iw-line">${won(pt.amount_ton)}톤</span>` +
-      `<span class="iw-line">${escapeHtml(region)}</span>` +
-      `<span class="iw-line">수확 ${escapeHtml(pt.harvest_date || "미정")}</span>` +
-      `<span class="iw-line">판매자 ${escapeHtml(pt.seller_name || "-")}</span>` +
-      `${mapLink}</div>`);
+    infowindow.setContent(makeInfoContent(pt, region));
     infowindow.setPosition(latlng);
     infowindow.open(map);
   }

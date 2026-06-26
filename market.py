@@ -40,9 +40,9 @@ def _make_virtual_account():
 def _status_label(status):
     return {
         "pending": "대기중",
-        "accepted": "수락됨/입금대기",
-        "paid": "입금확인 대기중",
-        "settled": "정산완료",
+        "accepted": "거래 중",
+        "paid": "입금 확인 대기",
+        "settled": "거래 완료",
         "rejected": "거절됨",
     }.get(status, status)
 
@@ -144,7 +144,7 @@ def update_status(listing_id):
     if not listing or listing.user_id != current_user.id:
         return jsonify({"ok": False, "사유": "권한이 없습니다."}), 403
     new_status = (request.get_json(force=True, silent=True) or {}).get("status")
-    if new_status not in ("selling", "done"):
+    if new_status not in ("selling", "trading", "done"):
         return jsonify({"ok": False, "사유": "잘못된 상태"}), 400
     listing.status = new_status
     db.session.commit()
@@ -388,8 +388,9 @@ def decide_request(req_id):
         pr.status = "accepted"
         pr.reject_reason = None
 
-        # 거래가 시작되면 새 신청이 들어오지 않도록 매물은 거래완료로 잠근다.
-        pr.listing.status = "done"
+        # 거래가 시작되면 새 신청이 들어오지 않도록 매물은 거래 중 상태로 잠근다.
+        # 최종 입금 확인 및 정산 완료 시점에 거래완료(done)로 전환한다.
+        pr.listing.status = "trading"
 
         # 같은 매물의 다른 대기 신청은 자동 거절 처리한다.
         others = PurchaseRequest.query.filter(

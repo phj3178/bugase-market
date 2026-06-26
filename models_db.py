@@ -76,7 +76,7 @@ class Listing(db.Model):
     harvest_date = db.Column(db.Date)                      # 수확 예정일
     note = db.Column(db.String(500))                       # 추가 설명(선택)
 
-    status = db.Column(db.String(12), default="selling")   # 'selling' | 'done' | 'deleted'
+    status = db.Column(db.String(12), default="selling")   # 'selling' | 'trading' | 'done' | 'deleted'
     delete_reason = db.Column(db.String(500))              # 판매자가 삭제 시 남기는 사유
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 

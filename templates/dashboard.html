@@ -43,8 +43,20 @@
   #map { width:100%; height:460px; border-radius:8px; border:1px solid var(--line,#E0DCCF); background:#eee; }
   .map-dot { width:16px; height:16px; border-radius:50%; border:2px solid #fff;
     box-shadow:0 1px 4px rgba(0,0,0,.35); cursor:pointer; }
-  .iw { padding:10px 12px; font-size:13px; line-height:1.6; color:#1A1A17; min-width:150px; }
-  .iw b { font-family:'Fraunces',serif; font-size:14px; }
+  .iw {
+    box-sizing:border-box; width:260px; max-width:260px; padding:12px 13px;
+    font-size:13px; line-height:1.55; color:#1A1A17; white-space:normal;
+    overflow-wrap:break-word; word-break:keep-all;
+  }
+  .iw b { display:block; font-family:'Fraunces',serif; font-size:15px; margin-bottom:6px; line-height:1.35; }
+  .iw .iw-line { display:block; margin-top:4px; }
+  .iw .iw-map-btn {
+    display:block; width:100%; box-sizing:border-box; margin-top:12px; padding:8px 10px; border-radius:6px;
+    background:var(--mustard,#C9892A); color:var(--ink,#1C1A14); text-align:center;
+    text-decoration:none; font-size:12px; font-weight:800; line-height:1.35;
+    border:1px solid rgba(28,26,20,.16);
+  }
+  .iw .iw-map-btn:hover { filter:brightness(.96); }
   .legend { display:flex; gap:14px; flex-wrap:wrap; margin-top:14px; }
   .legend .item { display:flex; align-items:center; gap:6px; font-size:13px; color:var(--olive-soft,#8a8a6a); }
   .legend .swatch { width:11px; height:11px; border-radius:50%; }
@@ -108,7 +120,7 @@
   <!-- 지도 -->
   <div class="panel">
     <h2>공급처 분포</h2>
-    <p class="hint">마커를 클릭하면 매물 정보가 표시됩니다. 정확한 주소가 없는 매물은 해당 도(道)의 대표 위치 부근에 표시됩니다.</p>
+    <p class="hint">마커를 클릭하면 매물 정보가 표시됩니다. 정보창의 “카카오맵으로 확인하기”를 누르면 저장된 주소가 새 창에서 열립니다.</p>
     <div id="map"></div>
     <div id="map-error">
       지도를 불러오지 못했습니다.<br>
@@ -151,5 +163,5 @@
 {% block scripts %}
 <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey={{ kakao_key }}&libraries=services&autoload=false"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<script src="{{ url_for('static', filename='dashboard.js') }}"></script>
+<script src="{{ url_for('static', filename='dashboard.js') }}?v=mapbox-20260626-2"></script>
 {% endblock %}
