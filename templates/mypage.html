@@ -328,7 +328,7 @@ async function renderFarmer() {
       <div class="meta">${L.farm_location||L.do} · 수확 ${L.harvest_date||"미정"}
       ${L.price_won? " · 희망 ₩"+won(L.price_won):" · 가격 협의"} · 신청 ${L.request_count}건</div>
       ${L.note? `<div class="meta">📝 ${L.note}</div>`:""}
-      <div class="req-line"><span class="badge ${L.status}">${{selling:'판매중',trading:'거래중',done:'거래완료'}[L.status] || L.status}</span>
+      <div class="req-line"><span class="badge ${L.status}">${({selling:'판매중',trading:'거래중',done:'거래완료'}[L.status] || L.status)}</span>
       <span style="display:flex; gap:8px;">${editBtn}
       <button class="btn btn-line" onclick="delListing(${L.id})">삭제</button></span></div>`;
     mbox.appendChild(card); }); }
