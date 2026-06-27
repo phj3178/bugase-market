@@ -788,3 +788,63 @@
   text-decoration: none; transition: all .15s;
 }
 .btn-ghost:hover { border-color: var(--olive); color: var(--olive); }
+
+/* ============ 홈 하단 안드로이드 앱 설치 QR 크기 축소 ============ */
+.footer-top.footer-top-home-qr {
+  grid-template-columns: 2fr 1fr 1fr 1fr 150px;
+  align-items: start;
+}
+
+.footer-app-qr {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  max-width: 150px;
+}
+
+.footer-app-qr h5 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--mustard);
+  margin-bottom: 4px;
+}
+
+.footer-app-qr p {
+  font-size: 12px;
+  color: var(--sage);
+  line-height: 1.45;
+  margin: 0;
+}
+
+.footer-app-qr img {
+  width: 108px !important;
+  height: 108px !important;
+  object-fit: contain;
+  background: #fff;
+  padding: 6px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.footer-app-qr span {
+  font-size: 11px;
+  color: var(--sage);
+  line-height: 1.45;
+}
+
+@media (max-width: 900px) {
+  .footer-top.footer-top-home-qr {
+    grid-template-columns: 1fr;
+  }
+
+  .footer-app-qr {
+    max-width: 140px;
+  }
+
+  .footer-app-qr img {
+    width: 100px !important;
+    height: 100px !important;
+  }
+}

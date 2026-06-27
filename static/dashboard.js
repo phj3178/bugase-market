@@ -33,9 +33,6 @@ let MAP_ON = false;       // 카카오 SDK 정상 로드 여부
 let map, geocoder, infowindow;
 let overlays = [];
 let cropChart = null, monthChart = null;
-const QUERY = new URLSearchParams(window.location.search);
-const FOCUS_ID = QUERY.get("listing_id");
-
 
 function colorFor(crop, idx) {
   return CROP_COLORS[crop] || FALLBACK_COLORS[idx % FALLBACK_COLORS.length];
@@ -48,80 +45,6 @@ function doCoords(doName) {
   }
   return null;
 }
-
-function escapeHtml(v) {
-  return String(v == null ? "" : v)
-    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
-}
-
-function kakaoMapUrl(addr) {
-  return "https://map.kakao.com/?q=" + encodeURIComponent(addr || "");
-}
-
-function makeInfoContent(pt, region) {
-  const box = document.createElement("div");
-  box.className = "iw";
-  box.style.boxSizing = "border-box";
-  box.style.width = "260px";
-  box.style.maxWidth = "260px";
-  box.style.padding = "12px 13px";
-  box.style.fontSize = "13px";
-  box.style.lineHeight = "1.55";
-  box.style.color = "#1A1A17";
-  box.style.whiteSpace = "normal";
-  box.style.overflowWrap = "break-word";
-  box.style.wordBreak = "keep-all";
-
-  const title = document.createElement("b");
-  title.textContent = `${pt.crop || "-"} · ${pt.byproduct || "-"}`;
-  title.style.display = "block";
-  title.style.fontFamily = "Fraunces, serif";
-  title.style.fontSize = "15px";
-  title.style.lineHeight = "1.35";
-  title.style.marginBottom = "6px";
-  box.appendChild(title);
-
-  const lines = [
-    `${won(pt.amount_ton)}톤`,
-    region || "-",
-    `수확 ${pt.harvest_date || "미정"}`,
-    `판매자 ${pt.seller_name || "-"}`,
-  ];
-  lines.forEach((text) => {
-    const line = document.createElement("div");
-    line.textContent = text;
-    line.style.display = "block";
-    line.style.marginTop = "4px";
-    box.appendChild(line);
-  });
-
-  if (region) {
-    const a = document.createElement("a");
-    a.href = kakaoMapUrl(region);
-    a.target = "_blank";
-    a.rel = "noopener";
-    a.textContent = "카카오맵으로 확인하기";
-    a.style.display = "block";
-    a.style.width = "100%";
-    a.style.boxSizing = "border-box";
-    a.style.marginTop = "12px";
-    a.style.padding = "8px 10px";
-    a.style.borderRadius = "6px";
-    a.style.background = "#C9892A";
-    a.style.color = "#1C1A14";
-    a.style.textAlign = "center";
-    a.style.textDecoration = "none";
-    a.style.fontSize = "12px";
-    a.style.fontWeight = "800";
-    a.style.lineHeight = "1.35";
-    a.style.border = "1px solid rgba(28,26,20,.16)";
-    box.appendChild(a);
-  }
-
-  return box;
-}
-
 
 // ---------- 진입 ----------
 async function initDashboard() {
@@ -255,10 +178,20 @@ function renderMonthChart(pts) {
 }
 
 // ---------- 표 ----------
+function harvestSortValue(p) {
+  // 수확 예정일이 있는 매물을 날짜 오름차순으로 먼저 보여주고, 미정은 마지막에 둔다.
+  return p.harvest_date ? p.harvest_date : "9999-12-31";
+}
+
 function renderTable(pts) {
   const body = document.getElementById("table-body");
   const cnt = document.getElementById("table-count");
-  const sorted = [...pts].sort((a, b) => (b.amount_ton || 0) - (a.amount_ton || 0));
+  const sorted = [...pts].sort((a, b) => {
+    const ad = harvestSortValue(a);
+    const bd = harvestSortValue(b);
+    if (ad !== bd) return ad.localeCompare(bd);
+    return (b.amount_ton || 0) - (a.amount_ton || 0);
+  });
   cnt.textContent = `총 ${won(pts.length)}건`;
   if (!sorted.length) {
     body.innerHTML = `<tr><td colspan="6" class="dash-empty">조건에 맞는 매물이 없습니다.</td></tr>`;
@@ -307,22 +240,15 @@ function placeDot(pt, latlng, color) {
   ov.setMap(map);
   overlays.push(ov);
 
-  function openInfo() {
+  el.addEventListener("click", () => {
     const region = pt.farm_location || [pt.do, pt.sigun].filter(Boolean).join(" ") || "";
-    infowindow.setContent(makeInfoContent(pt, region));
+    infowindow.setContent(
+      `<div class="iw"><b>${pt.crop} · ${pt.byproduct}</b><br>` +
+      `${won(pt.amount_ton)}톤<br>${region}<br>` +
+      `수확 ${pt.harvest_date || "미정"}<br>판매자 ${pt.seller_name || "-"}</div>`);
     infowindow.setPosition(latlng);
     infowindow.open(map);
-  }
-
-  el.addEventListener("click", openInfo);
-
-  if (FOCUS_ID && String(pt.id) === String(FOCUS_ID)) {
-    setTimeout(() => {
-      map.setLevel(8);
-      map.panTo(latlng);
-      openInfo();
-    }, 120);
-  }
+  });
 }
 
 function fallbackPlace(pt, color) {

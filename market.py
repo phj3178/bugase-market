@@ -7,11 +7,10 @@
 
 app.py 에서 register_market(app) 으로 등록한다.
 """
-from datetime import datetime
+from datetime import datetime, date
 import random
-import json
 
-from flask import Blueprint, request, jsonify, Response
+from flask import Blueprint, request, jsonify
 from flask_login import login_required, current_user
 from models_db import db, Listing, PurchaseRequest
 import config
@@ -222,8 +221,10 @@ def delete_listing(listing_id):
 @login_required
 def dashboard_data():
     """판매 중인 매물을 대시보드용으로 내려준다(집계·차트는 프론트에서 계산)."""
-    rows = (Listing.query.filter_by(status="selling")
-            .order_by(Listing.created_at.desc()).all())
+    rows = Listing.query.filter_by(status="selling").all()
+    # 대시보드 표와 지도 데이터는 수확 예정일 기준으로 정렬한다.
+    # 수확 예정일이 없는 매물은 마지막에 표시한다.
+    rows.sort(key=lambda r: (r.harvest_date is None, r.harvest_date or date.max, r.id))
     points = [{
         "id": r.id,
         "crop": r.crop,
@@ -264,195 +265,6 @@ def list_listings():
         d["my_request_status"] = my_status.get(r.id)  # None|pending|accepted|rejected
         out.append(d)
     return jsonify({"ok": True, "listings": out})
-
-
-
-
-# ---------------------------------------------------------
-# 모바일 앱용 카카오 지도 페이지 (WebView)
-# ---------------------------------------------------------
-@market.route("/mobile-map")
-def mobile_map():
-    """React Native WebView에서 로드할 모바일 전용 지도 페이지.
-
-    Kakao Maps JavaScript SDK는 도메인 검증을 하기 때문에 앱에 inline HTML로
-    넣기보다 Flask가 직접 페이지를 내려주는 방식이 더 안정적이다.
-    """
-    q = Listing.query.filter_by(status="selling")
-    crop = request.args.get("crop")
-    do = request.args.get("do")
-    if crop:
-        q = q.filter_by(crop=crop)
-    if do:
-        q = q.filter_by(do=do)
-
-    rows = q.order_by(Listing.created_at.desc()).limit(100).all()
-    items = []
-    for r in rows:
-        address = r.farm_location or " ".join([x for x in [r.do, r.sigun] if x])
-        items.append({
-            "id": r.id,
-            "title": f"{r.crop} · {r.byproduct}",
-            "crop": r.crop,
-            "byproduct": r.byproduct,
-            "amountTon": r.amount_ton,
-            "address": address,
-            "sellerName": r.seller.name if r.seller else None,
-            "priceWon": r.price_won,
-        })
-
-    payload = json.dumps(items, ensure_ascii=False).replace("</", "<\\/")
-    kakao_key = config.KAKAO_JS_KEY
-
-    html = f"""<!doctype html>
-<html lang=\"ko\">
-<head>
-  <meta charset=\"utf-8\" />
-  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no\" />
-  <style>
-    html, body, #map {{ width: 100%; height: 100%; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', sans-serif; background: #EBD8B8; }}
-    .overlay {{ position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: #EBD8B8; color: #3A3E1F; font-weight: 800; text-align: center; line-height: 1.55; padding: 24px; box-sizing: border-box; z-index: 10; }}
-    .info {{ width: 220px; padding: 12px; box-sizing: border-box; color: #1C1A14; }}
-    .title {{ font-weight: 900; font-size: 15px; margin-bottom: 6px; }}
-    .addr {{ color: #5C6238; font-size: 12px; line-height: 1.45; margin-bottom: 7px; }}
-    .meta {{ color: #3A3E1F; font-size: 12px; font-weight: 800; }}
-    .fallback {{ position: absolute; left: 14px; right: 14px; bottom: 14px; padding: 10px 12px; border-radius: 14px; background: rgba(251, 250, 245, 0.94); color: #3A3E1F; font-size: 12px; line-height: 1.35; z-index: 20; box-shadow: 0 6px 18px rgba(0,0,0,.12); }}
-  </style>
-</head>
-<body>
-  <div id=\"map\"></div>
-  <div id=\"overlay\" class=\"overlay\">지도를 불러오는 중입니다.</div>
-
-  <script>
-    const items = {payload};
-    const overlay = document.getElementById('overlay');
-    let finished = false;
-
-    function showMessage(message) {{
-      overlay.style.display = 'flex';
-      overlay.innerHTML = message;
-    }}
-
-    function hideMessage() {{
-      overlay.style.display = 'none';
-    }}
-
-    function addFallback(message) {{
-      const div = document.createElement('div');
-      div.className = 'fallback';
-      div.innerHTML = message;
-      document.body.appendChild(div);
-    }}
-
-    function loadKakaoSdk() {{
-      return new Promise(function(resolve, reject) {{
-        const script = document.createElement('script');
-        script.src = 'https://dapi.kakao.com/v2/maps/sdk.js?appkey={kakao_key}&libraries=services&autoload=false';
-        script.onload = function() {{ resolve(); }};
-        script.onerror = function() {{ reject(new Error('SDK_LOAD_FAILED')); }};
-        document.head.appendChild(script);
-      }});
-    }}
-
-    function initMap() {{
-      if (!window.kakao || !kakao.maps) {{
-        showMessage('카카오 지도 SDK를 불러오지 못했습니다.<br/>카카오 개발자 콘솔의 Web 플랫폼 도메인을 확인해주세요.');
-        return;
-      }}
-
-      kakao.maps.load(function () {{
-        const defaultCenter = new kakao.maps.LatLng(36.5, 127.8);
-        const map = new kakao.maps.Map(document.getElementById('map'), {{
-          center: defaultCenter,
-          level: 12
-        }});
-
-        const geocoder = new kakao.maps.services.Geocoder();
-        const bounds = new kakao.maps.LatLngBounds();
-        let successCount = 0;
-        let doneCount = 0;
-        let activeInfoWindow = null;
-
-        function closeActiveInfoWindow() {{
-          if (activeInfoWindow) {{
-            activeInfoWindow.close();
-            activeInfoWindow = null;
-          }}
-        }}
-
-        kakao.maps.event.addListener(map, 'click', closeActiveInfoWindow);
-        kakao.maps.event.addListener(map, 'dragstart', closeActiveInfoWindow);
-        kakao.maps.event.addListener(map, 'zoom_changed', closeActiveInfoWindow);
-
-        if (!items.length) {{
-          finished = true;
-          showMessage('표시할 매물이 없습니다.');
-          return;
-        }}
-
-        function finishOne() {{
-          doneCount += 1;
-          if (doneCount >= items.length) {{
-            finished = true;
-            hideMessage();
-            if (successCount > 0) {{
-              map.setBounds(bounds);
-              if (successCount === 1) map.setLevel(7);
-            }} else {{
-              showMessage('주소를 좌표로 변환하지 못했습니다.<br/>아래 매물 카드의 카카오맵 버튼을 이용해주세요.');
-            }}
-          }}
-        }}
-
-        items.forEach(function (item) {{
-          const address = item.address || '';
-          if (!address) {{
-            finishOne();
-            return;
-          }}
-
-          geocoder.addressSearch(address, function (result, status) {{
-            if (status === kakao.maps.services.Status.OK && result && result[0]) {{
-              const latlng = new kakao.maps.LatLng(result[0].y, result[0].x);
-              bounds.extend(latlng);
-              successCount += 1;
-
-              const marker = new kakao.maps.Marker({{ map: map, position: latlng }});
-              const infoHtml = '<div class=\"info\">'
-                + '<div class=\"title\">' + item.title + '</div>'
-                + '<div class=\"addr\">' + address + '</div>'
-                + '<div class=\"meta\">' + Number(item.amountTon || 0).toLocaleString('ko-KR', {{ maximumFractionDigits: 2 }}) + '톤</div>'
-                + '</div>';
-              const infowindow = new kakao.maps.InfoWindow({{ content: infoHtml }});
-              kakao.maps.event.addListener(marker, 'click', function () {{
-                if (activeInfoWindow === infowindow) {{
-                  closeActiveInfoWindow();
-                  return;
-                }}
-                closeActiveInfoWindow();
-                infowindow.open(map, marker);
-                activeInfoWindow = infowindow;
-              }});
-            }}
-            finishOne();
-          }});
-        }});
-      }});
-    }}
-
-    setTimeout(function () {{
-      if (!finished) {{
-        showMessage('지도를 불러오지 못했습니다.<br/>로컬 테스트 중이라면 카카오 개발자 콘솔에 현재 주소를 Web 플랫폼 도메인으로 등록해야 합니다.');
-      }}
-    }}, 8000);
-
-    loadKakaoSdk().then(initMap).catch(function () {{
-      showMessage('카카오 지도 SDK 로딩에 실패했습니다.<br/>네트워크 또는 Web 플랫폼 도메인 설정을 확인해주세요.');
-    }});
-  </script>
-</body>
-</html>"""
-    return Response(html, mimetype="text/html; charset=utf-8")
 
 
 # =========================================================

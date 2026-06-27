@@ -176,15 +176,7 @@ function renderFarmerResult(data, cropName) {
       <span class="key">예측 단수</span>
       <span class="val"><span id="f-yield"></span> kg/10a</span>
     </div>
-    <div class="price-row">
-      <span class="key">예상 총 수익</span>
-      <span class="val highlight">₩ <span id="f-revenue"></span></span>
-    </div>
-    <div class="price-row">
-      <span class="key">소각·폐기 시 비용</span>
-      <span class="val" style="color: var(--rust);">- ₩ <span id="f-disposal"></span></span>
-    </div>
-    <div class="tiny-note" id="f-via"></div>`;
+    `;
   out.style.display = "block";
 
   document.getElementById("f-amount").textContent = won(data.부산물합계_kg);
@@ -203,20 +195,6 @@ function renderFarmerResult(data, cropName) {
   });
 
   document.getElementById("f-yield").textContent = won(data.예측단수_kg_10a);
-  document.getElementById("f-revenue").textContent = won(data.예상수익_원);
-  document.getElementById("f-disposal").textContent = won(data.폐기비용_원);
-
-  let via = `예측 경로: ${data.예측경로}`;
-  if (data.mode === "sample") via += " · ⚠ 샘플 데모 모드 (data/ 파일 미연결)";
-  if (data.날씨정보) {
-    const w = data.날씨정보;
-    via += `<br>🌦 날씨: ${w.방식 || ""}`;
-    if (w.실측구간 && w.실측구간 !== "실측없음") via += ` · 실측 ${w.실측일수}일`;
-    if (w.평년일수) via += ` · 평년 ${w.평년일수}일`;
-    if (w.생육기간) via += ` (생육기간 ${w.생육기간})`;
-  }
-  document.getElementById("f-via").innerHTML = via;
-
   LAST_PRED = data;
   renderSellSection(data);
 }
