@@ -87,7 +87,7 @@ with app.app_context():
 # CORS 허용: 아임웹 등 다른 주소의 웹페이지에서 이 백엔드 API를 부를 수 있게 함.
 try:
     from flask_cors import CORS
-    CORS(app)
+    CORS(app, supports_credentials=True)
 except ImportError:
     print("[부가새] flask-cors 미설치 → CORS 비활성 (로컬 테스트는 문제 없음)")
 
@@ -227,5 +227,8 @@ def api_match():
     return jsonify({"ok": True, "crop": 작물, "results": rows})
 
 
+# if __name__ == "__main__":
+#     app.run(debug=True, port=5000)
+
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    app.run(debug=True, host="0.0.0.0", port=5000)

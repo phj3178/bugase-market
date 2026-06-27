@@ -98,7 +98,7 @@ class Listing(db.Model):
             "status": self.status,
             "delete_reason": self.delete_reason,
             "seller_name": self.seller.name if self.seller else None,
-            "seller_phone": self.seller.phone if self.seller else None,
+            "seller_phone": None,  # 직거래 방지를 위해 공개 API에서는 연락처 비공개
             "created_at": self.created_at.strftime("%Y-%m-%d") if self.created_at else None,
             "request_count": len(self.requests),
         }

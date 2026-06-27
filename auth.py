@@ -184,3 +184,97 @@ def delete_account():
     db.session.delete(user)
     db.session.commit()
     return jsonify({"ok": True})
+
+# ---------------------------------------------------------
+# 모바일 앱용 인증 API (React Native / Expo)
+# ---------------------------------------------------------
+def _user_payload(u):
+    """앱에서 쓰기 좋은 형태로 현재 회원 정보를 내려준다."""
+    return {
+        "id": u.id,
+        "email": u.email,
+        "name": u.name,
+        "user_type": u.user_type,
+        "is_admin": u.is_admin,
+        "region": u.region or "",
+    }
+
+
+@auth.route("/api/app/signup", methods=["POST"])
+def app_signup():
+    """앱용 JSON 회원가입 API. 가입 후 바로 로그인 세션을 만든다."""
+    data = request.get_json(force=True, silent=True) or {}
+    email = (data.get("email") or "").strip().lower()
+    password = data.get("password") or ""
+    password2 = data.get("password2") or ""
+    user_type = data.get("user_type") or ""
+    name = (data.get("name") or "").strip()
+    phone = (data.get("phone") or "").strip()
+    region = (data.get("region") or "").strip()
+
+    if current_user.is_authenticated:
+        logout_user()
+
+    if not EMAIL_RE.match(email):
+        return jsonify({"ok": False, "사유": "이메일 형식이 올바르지 않습니다."}), 400
+    if len(password) < 6:
+        return jsonify({"ok": False, "사유": "비밀번호는 6자 이상이어야 합니다."}), 400
+    if password != password2:
+        return jsonify({"ok": False, "사유": "비밀번호가 서로 일치하지 않습니다."}), 400
+    if user_type not in ("farmer", "company"):
+        return jsonify({"ok": False, "사유": "회원 유형을 선택하세요."}), 400
+    if not name:
+        return jsonify({"ok": False, "사유": "이름 또는 상호명을 입력하세요."}), 400
+    if User.query.filter_by(email=email).first():
+        return jsonify({"ok": False, "사유": "이미 가입된 이메일입니다."}), 409
+
+    user = User(
+        email=email,
+        user_type=user_type,
+        name=name,
+        phone=phone,
+        region=region,
+    )
+    user.set_password(password)
+    db.session.add(user)
+    db.session.commit()
+
+    login_user(user, remember=True)
+    return jsonify({"ok": True, "user": _user_payload(user)})
+
+
+@auth.route("/api/app/login", methods=["POST"])
+def app_login():
+    """앱용 JSON 로그인 API. 기존 웹 로그인과 같은 세션을 사용한다."""
+    data = request.get_json(force=True, silent=True) or {}
+    email = (data.get("email") or "").strip().lower()
+    password = data.get("password") or ""
+
+    if not EMAIL_RE.match(email):
+        return jsonify({"ok": False, "사유": "이메일 형식이 올바르지 않습니다."}), 400
+    if not password:
+        return jsonify({"ok": False, "사유": "비밀번호를 입력하세요."}), 400
+
+    user = User.query.filter_by(email=email).first()
+    if user is None or not user.check_password(password):
+        return jsonify({"ok": False, "사유": "이메일 또는 비밀번호가 올바르지 않습니다."}), 401
+
+    login_user(user, remember=True)
+    return jsonify({"ok": True, "user": _user_payload(user)})
+
+
+@auth.route("/api/app/me", methods=["GET"])
+def app_me():
+    """앱 재접속 시 현재 로그인 세션 확인."""
+    if current_user.is_authenticated:
+        return jsonify({"ok": True, "authenticated": True, "user": _user_payload(current_user)})
+    return jsonify({"ok": True, "authenticated": False, "user": None})
+
+
+@auth.route("/api/app/logout", methods=["POST"])
+def app_logout():
+    """앱용 JSON 로그아웃 API."""
+    if current_user.is_authenticated:
+        logout_user()
+    return jsonify({"ok": True})
+
